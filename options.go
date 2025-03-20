@@ -9,6 +9,7 @@ const (
 
 var DefaultOptions = &Options{
 	AllowedIPs: "0.0.0.0/0",
+	DNS:        "1.1.1.1",
 }
 
 type Options struct {
