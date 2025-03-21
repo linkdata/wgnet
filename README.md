@@ -5,4 +5,50 @@
 
 # wgnet
 
-WireGuard ContextDialer.
+WireGuard ContextDialer for Go.
+
+## Setting up a Wireguard exit node on Debian/Ubuntu
+
+### Install software and generate keys for exit node
+
+```sh
+apt install firewalld wireguard
+wg genkey | tee /etc/wireguard/wg_private.key | wg pubkey | tee /etc/wireguard/wg_public.key
+```
+
+### Create configuration file
+
+`nano /etc/wireguard/wg0.conf`
+
+```conf
+[Interface]
+Address = 10.99.0.1/24
+SaveConfig = true
+ListenPort = 51820
+PrivateKey = <wg_private.key>
+```
+
+### Configure firewall
+
+```sh
+firewall-cmd --permanent --zone public --add-interface=<external_if>
+firewall-cmd --permanent --zone public --add-masquerade
+firewall-cmd --permanent --zone public --add-port=51820/udp
+firewall-cmd --reload
+```
+
+### Start and set wireguard to start on boot
+
+```sh
+wg-quick up wg0
+systemctl enable wg-quick@wg0
+```
+
+### Add the clients that will use the exit node
+
+```
+wg set wg0 peer <peer1_public_key> allowed-ips 10.99.0.2
+wg set wg0 peer <peer2_public_key> allowed-ips 10.99.0.3
+
+wg-quick save wg0
+```
