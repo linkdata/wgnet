@@ -18,16 +18,16 @@ import (
 var serverConfig = `[Interface]
 PrivateKey = GInruesHOogIjjFsKCorYEAENAfYfPL/yH8ObFgyFUs=
 ListenPort = %d
-Address = 10.0.0.1/24
+Address = 10.131.132.1/24
 
 [Peer]
 PublicKey = kTUQWHx4Y3ZYMZQPnRarzlx0qnen3plDoI0z7s45in4=
-AllowedIPs = 10.0.0.2/32
+AllowedIPs = 10.131.132.2/32
 `
 
 var clientConfig = `[Interface]
 PrivateKey = AEnvL9tVr+7JF0sMVjjzPjIxrrc/hoVJ5B82WWpVamI=
-Address = 10.0.0.2/24
+Address = 10.131.132.2/24
 DNS = 1.1.1.1
 
 [Peer]
@@ -89,7 +89,7 @@ func TestWgNet_PingServer(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	defer cancel()
 
-	latency, err := cli.Ping4(ctx, "10.0.0.1")
+	latency, err := cli.Ping4(ctx, "10.131.132.1")
 	maybeFatal(t, err)
 	t.Log(latency)
 }
@@ -111,7 +111,7 @@ func TestWgNet_Listen(t *testing.T) {
 	defer cli.Close()
 	defer srv.Close()
 
-	l, err := srv.Listen("tcp", "10.0.0.1:0")
+	l, err := srv.Listen("tcp", "10.131.132.1:0")
 	maybeFatal(t, err)
 	defer l.Close()
 
