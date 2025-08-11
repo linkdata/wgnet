@@ -84,17 +84,18 @@ func (wgnet *WgNet) Ping4(ctx context.Context, address string) (latency time.Dur
 			if ctxdl, ok := ctx.Deadline(); ok {
 				dl = ctxdl
 			}
-			_ = socket.SetDeadline(dl)
-			if _, err = socket.Write(icmpBytes); err == nil {
-				var n int
-				if n, err = socket.Read(icmpBytes[:]); err == nil {
-					var replyPacket *icmp.Message
-					if replyPacket, err = icmp.ParseMessage(1, icmpBytes[:n]); err == nil {
-						err = ErrInvalidPingReply
-						if replyPing, ok := replyPacket.Body.(*icmp.Echo); ok {
-							if replyPing.Seq == requestPing.Seq && bytes.Equal(replyPing.Data, requestPing.Data) {
-								latency = time.Since(start)
-								err = nil
+			if err = socket.SetDeadline(dl); err == nil {
+				if _, err = socket.Write(icmpBytes); err == nil {
+					var n int
+					if n, err = socket.Read(icmpBytes[:]); err == nil {
+						var replyPacket *icmp.Message
+						if replyPacket, err = icmp.ParseMessage(1, icmpBytes[:n]); err == nil {
+							err = ErrInvalidPingReply
+							if replyPing, ok := replyPacket.Body.(*icmp.Echo); ok {
+								if replyPing.Seq == requestPing.Seq && bytes.Equal(replyPing.Data, requestPing.Data) {
+									latency = time.Since(start)
+									err = nil
+								}
 							}
 						}
 					}

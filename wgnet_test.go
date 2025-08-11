@@ -62,6 +62,13 @@ func makeNets(t *testing.T) (srv, cli *wgnet.WgNet) {
 	return
 }
 
+func maybeFatal(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestWgNet_Open_Fails(t *testing.T) {
 	srv := wgnet.New(&wgnet.Config{})
 	err := srv.Open()
@@ -79,13 +86,11 @@ func TestWgNet_PingServer(t *testing.T) {
 	defer cli.Close()
 	defer srv.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	defer cancel()
 
 	latency, err := cli.Ping4(ctx, "10.0.0.1")
-	if err != nil {
-		t.Fatal(err)
-	}
+	maybeFatal(t, err)
 	t.Log(latency)
 }
 
@@ -94,12 +99,10 @@ func TestWgNet_LookupHost(t *testing.T) {
 	defer cli.Close()
 	defer srv.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	defer cancel()
 	ips, err := cli.LookupHost(ctx, "127.0.0.1") // will be a no-op
-	if err != nil {
-		t.Fatal(err)
-	}
+	maybeFatal(t, err)
 	t.Log(ips)
 }
 
@@ -109,9 +112,7 @@ func TestWgNet_Listen(t *testing.T) {
 	defer srv.Close()
 
 	l, err := srv.Listen("tcp", "10.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
+	maybeFatal(t, err)
 	defer l.Close()
 
 	t.Log(l.Addr().String())
@@ -120,12 +121,11 @@ func TestWgNet_Listen(t *testing.T) {
 	_, _ = rand.Read(want)
 
 	conn, err := cli.Dial("tcp", l.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
+	maybeFatal(t, err)
 	defer conn.Close()
 
-	conn.SetDeadline(time.Now().Add(time.Second))
+	err = conn.SetDeadline(time.Now().Add(time.Second))
+	maybeFatal(t, err)
 
 	go func() {
 		_, err := conn.Write(want)
@@ -156,21 +156,15 @@ func TestWgNet_LookupHost_ExternalServer(t *testing.T) {
 		t.Skip("WGNET_TEST_CLIENT_CONFIG not set")
 	}
 	b, err := os.ReadFile(clientconfigfile)
-	if err != nil {
-		t.Fatal(err)
-	}
+	maybeFatal(t, err)
 	cfg, err := wgnet.Parse(bytes.NewReader(b), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	maybeFatal(t, err)
 	cli := wgnet.New(cfg)
 	err = cli.Open()
-	if err != nil {
-		t.Fatal(err)
-	}
+	maybeFatal(t, err)
 	defer cli.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second*2)
 	defer cancel()
 
 	pingaddr := cfg.Addresses[0].Masked().Addr().Next()
@@ -182,9 +176,7 @@ func TestWgNet_LookupHost_ExternalServer(t *testing.T) {
 
 	now := time.Now()
 	ips, err := cli.LookupHost(ctx, "cloudflare.com")
-	if err != nil {
-		t.Fatal(err)
-	}
+	maybeFatal(t, err)
 	t.Log("cloudflare.com", ips, time.Since(now))
 }
 
