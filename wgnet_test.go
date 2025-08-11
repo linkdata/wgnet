@@ -38,7 +38,7 @@ AllowedIPs = 0.0.0.0/0, ::/0
 
 var nextListenPort = 10000 + mrand.IntN(1000)
 
-func makeNets(t *testing.T) (srv, cli *wgnet.WgNet) {
+func makeNets() (srv, cli *wgnet.WgNet) {
 	listenPort := nextListenPort
 	nextListenPort++
 	if nextListenPort > 65000 {
@@ -58,7 +58,9 @@ func makeNets(t *testing.T) (srv, cli *wgnet.WgNet) {
 			}
 		}
 	}
-	t.Fatal(err)
+	if err != nil {
+		panic(err)
+	}
 	return
 }
 
@@ -82,7 +84,7 @@ func TestWgNet_Open_Fails(t *testing.T) {
 }
 
 func TestWgNet_PingServer(t *testing.T) {
-	srv, cli := makeNets(t)
+	srv, cli := makeNets()
 	defer cli.Close()
 	defer srv.Close()
 
@@ -94,8 +96,30 @@ func TestWgNet_PingServer(t *testing.T) {
 	t.Log(latency)
 }
 
+func Benchmark_PingServer(b *testing.B) {
+	srv, cli := makeNets()
+	defer cli.Close()
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(b.Context(), time.Minute)
+	defer cancel()
+
+	var totlatency time.Duration
+	var numlatency time.Duration
+	for b.Loop() {
+		numlatency++
+		latency, err := cli.Ping4(ctx, "10.131.132.1")
+		totlatency += latency
+		if err != nil {
+			b.Error(err)
+			break
+		}
+	}
+	b.Log(totlatency / numlatency)
+}
+
 func TestWgNet_LookupHost(t *testing.T) {
-	srv, cli := makeNets(t)
+	srv, cli := makeNets()
 	defer cli.Close()
 	defer srv.Close()
 
@@ -107,7 +131,7 @@ func TestWgNet_LookupHost(t *testing.T) {
 }
 
 func TestWgNet_Listen(t *testing.T) {
-	srv, cli := makeNets(t)
+	srv, cli := makeNets()
 	defer cli.Close()
 	defer srv.Close()
 
