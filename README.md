@@ -1,5 +1,5 @@
 [![build](https://github.com/linkdata/wgnet/actions/workflows/build.yml/badge.svg)](https://github.com/linkdata/wgnet/actions/workflows/build.yml)
-[![coverage](https://coveralls.io/repos/github/linkdata/wgnet/badge.svg?branch=main)](https://coveralls.io/github/linkdata/wgnet?branch=main)
+[![coverage](https://github.com/linkdata/wgnet/blob/coverage/main/badge.svg)](https://htmlpreview.github.io/?https://github.com/linkdata/wgnet/blob/coverage/main/report.html)
 [![goreport](https://goreportcard.com/badge/github.com/linkdata/wgnet)](https://goreportcard.com/report/github.com/linkdata/wgnet)
 [![Docs](https://godoc.org/github.com/linkdata/wgnet?status.svg)](https://godoc.org/github.com/linkdata/wgnet)
 
