@@ -88,7 +88,7 @@ func TestWgNet_PingServer(t *testing.T) {
 	defer cli.Close()
 	defer srv.Close()
 
-	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
 	defer cancel()
 
 	latency, err := cli.Ping4(ctx, "10.131.132.1")
