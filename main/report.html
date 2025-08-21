@@ -1,0 +1,557 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>wgnet: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/linkdata/wgnet/config.go (100.0%)</option>
+				
+				<option value="file1">github.com/linkdata/wgnet/parse.go (100.0%)</option>
+				
+				<option value="file2">github.com/linkdata/wgnet/wgnet.go (100.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package wgnet
+
+import (
+        "encoding/base64"
+        "fmt"
+        "net/netip"
+        "strings"
+)
+
+type Config struct {
+        Addresses           []netip.Prefix
+        PrivateKey          []byte
+        PublicKey           []byte
+        PresharedKey        []byte
+        Endpoint            netip.AddrPort
+        AllowedIPs          []netip.Prefix
+        DNS                 []netip.Addr
+        ListenPort          int
+        LogLevel            int
+        PersistentKeepalive int
+}
+
+func (cfg *Config) UapiConf() string <span class="cov8" title="1">{
+        var buf strings.Builder
+        fmt.Fprintf(&amp;buf, "private_key=%x\n", cfg.PrivateKey)
+        if cfg.ListenPort &gt; 0 </span><span class="cov8" title="1">{
+                fmt.Fprintf(&amp;buf, "listen_port=%d\n", cfg.ListenPort)
+        }</span>
+        <span class="cov8" title="1">fmt.Fprintf(&amp;buf, "public_key=%x\n", cfg.PublicKey)
+        if cfg.Endpoint.IsValid() </span><span class="cov8" title="1">{
+                fmt.Fprintf(&amp;buf, "endpoint=%s\n", cfg.Endpoint.String())
+        }</span>
+        <span class="cov8" title="1">if len(cfg.PresharedKey) &gt; 0 </span><span class="cov8" title="1">{
+                fmt.Fprintf(&amp;buf, "preshared_key=%x\n", cfg.PresharedKey)
+        }</span>
+        <span class="cov8" title="1">for _, pf := range cfg.AllowedIPs </span><span class="cov8" title="1">{
+                fmt.Fprintf(&amp;buf, "allowed_ip=%s\n", pf.String())
+        }</span>
+        <span class="cov8" title="1">if cfg.PersistentKeepalive &gt; 0 </span><span class="cov8" title="1">{
+                fmt.Fprintf(&amp;buf, "persistent_keepalive_interval=%d\n", cfg.PersistentKeepalive)
+        }</span>
+        <span class="cov8" title="1">return buf.String()</span>
+}
+
+func (cfg *Config) String() string <span class="cov8" title="1">{
+        var buf strings.Builder
+        fmt.Fprintf(&amp;buf, "[Interface]\nPrivateKey = %s", base64.StdEncoding.EncodeToString(cfg.PrivateKey))
+        if cfg.ListenPort &gt; 0 </span><span class="cov8" title="1">{
+                fmt.Fprintf(&amp;buf, "\nListenPort = %d", cfg.ListenPort)
+        }</span>
+        <span class="cov8" title="1">if len(cfg.Addresses) &gt; 0 </span><span class="cov8" title="1">{
+                buf.WriteString("\nAddress = ")
+                for n, pf := range cfg.Addresses </span><span class="cov8" title="1">{
+                        if n &gt; 0 </span><span class="cov8" title="1">{
+                                buf.WriteByte(',')
+                        }</span>
+                        <span class="cov8" title="1">buf.WriteString(pf.String())</span>
+                }
+        }
+        <span class="cov8" title="1">if len(cfg.DNS) &gt; 0 </span><span class="cov8" title="1">{
+                buf.WriteString("\nDNS = ")
+                for n, addr := range cfg.DNS </span><span class="cov8" title="1">{
+                        if n &gt; 0 </span><span class="cov8" title="1">{
+                                buf.WriteByte(',')
+                        }</span>
+                        <span class="cov8" title="1">buf.WriteString(addr.String())</span>
+                }
+        }
+        <span class="cov8" title="1">fmt.Fprintf(&amp;buf, "\n\n[Peer]\nPublicKey = %s",
+                base64.StdEncoding.EncodeToString(cfg.PublicKey),
+        )
+        if cfg.Endpoint.IsValid() </span><span class="cov8" title="1">{
+                fmt.Fprintf(&amp;buf, "\nEndpoint = %s", cfg.Endpoint.String())
+        }</span>
+        <span class="cov8" title="1">if len(cfg.PresharedKey) &gt; 0 </span><span class="cov8" title="1">{
+                fmt.Fprintf(&amp;buf, "\nPresharedKey = %x", cfg.PresharedKey)
+        }</span>
+        <span class="cov8" title="1">if cfg.PersistentKeepalive &gt; 0 </span><span class="cov8" title="1">{
+                fmt.Fprintf(&amp;buf, "\nPersistentKeepalive = %v", cfg.PersistentKeepalive)
+        }</span>
+        <span class="cov8" title="1">if len(cfg.AllowedIPs) &gt; 0 </span><span class="cov8" title="1">{
+                buf.WriteString("\nAllowedIPs = ")
+                for n, pf := range cfg.AllowedIPs </span><span class="cov8" title="1">{
+                        if n &gt; 0 </span><span class="cov8" title="1">{
+                                buf.WriteByte(',')
+                        }</span>
+                        <span class="cov8" title="1">buf.WriteString(pf.String())</span>
+                }
+        }
+        <span class="cov8" title="1">buf.WriteByte('\n')
+        return buf.String()</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package wgnet
+
+import (
+        "encoding/base64"
+        "encoding/hex"
+        "errors"
+        "io"
+        "net/netip"
+        "strconv"
+        "strings"
+
+        "github.com/linkdata/inifile"
+)
+
+var ErrInvalidInterfacePrivateKey = errors.New("invalid [Interface] PrivateKey")
+var ErrInvalidPeerPublicKey = errors.New("invalid [Peer] PublicKey")
+var ErrInvalidPeerEndpoint = errors.New("invalid [Peer] Endpoint")
+var ErrMissingInterfaceAddress = errors.New("missing [Interface] Address")
+var ErrKeyLengthNot32Bytes = errors.New("key length not 32 bytes")
+var ErrInvalidInterfaceAddress = errors.New("invalid [Interface] Address")
+var ErrInvalidInterfaceDNS = errors.New("invalid [Interface] DNS")
+var ErrInvalidPeerAllowedIPs = errors.New("invalid [Peer] AllowedIPs")
+var ErrInvalidPeerPresharedKey = errors.New("invalid [Peer] PresharedKey")
+var ErrInvalidPeerPersistentKeepalive = errors.New("invalid [Peer] PersistentKeepalive")
+var ErrInvalidInterfaceListenPort = errors.New("invalid [Interface] ListenPort")
+
+// Parse reads a WireGuard configuration file, validates it and returns a Config.
+func Parse(r io.Reader, opts *Options) (cfg *Config, err error) <span class="cov8" title="1">{
+        if opts == nil </span><span class="cov8" title="1">{
+                opts = DefaultOptions
+        }</span>
+
+        <span class="cov8" title="1">var inif inifile.File
+        if inif, err = inifile.Parse(r, ','); err == nil </span><span class="cov8" title="1">{
+                var cf Config
+                if cf.PrivateKey, err = mustDecode(inif, "interface", "privatekey", ErrInvalidInterfacePrivateKey); err == nil </span><span class="cov8" title="1">{
+                        if cf.PublicKey, err = mustDecode(inif, "peer", "publickey", ErrInvalidPeerPublicKey); err == nil </span><span class="cov8" title="1">{
+                                for addr := range strings.SplitSeq(inif.GetDefault("interface", "address", ""), ",") </span><span class="cov8" title="1">{
+                                        if addr != "" </span><span class="cov8" title="1">{
+                                                var pf netip.Prefix
+                                                if pf, err = mustPrefix(addr, ErrInvalidInterfaceAddress); err != nil </span><span class="cov8" title="1">{
+                                                        return
+                                                }</span>
+                                                <span class="cov8" title="1">if opts.AllowIpv6 || pf.Addr().Is4() </span><span class="cov8" title="1">{
+                                                        cf.Addresses = append(cf.Addresses, pf)
+                                                }</span>
+                                        }
+                                }
+                                <span class="cov8" title="1">if len(cf.Addresses) == 0 </span><span class="cov8" title="1">{
+                                        return nil, ErrMissingInterfaceAddress
+                                }</span>
+
+                                <span class="cov8" title="1">for addr := range strings.SplitSeq(inif.GetDefault("interface", "dns", opts.DNS), ",") </span><span class="cov8" title="1">{
+                                        if addr != "" </span><span class="cov8" title="1">{
+                                                var a netip.Addr
+                                                if a, err = mustAddress(addr, ErrInvalidInterfaceDNS); err != nil </span><span class="cov8" title="1">{
+                                                        return
+                                                }</span>
+                                                <span class="cov8" title="1">cf.DNS = append(cf.DNS, a)</span>
+                                        }
+                                }
+
+                                <span class="cov8" title="1">for addr := range strings.SplitSeq(inif.GetDefault("peer", "allowedips", opts.AllowedIPs), ",") </span><span class="cov8" title="1">{
+                                        if addr != "" </span><span class="cov8" title="1">{
+                                                var pf netip.Prefix
+                                                if pf, err = mustPrefix(addr, ErrInvalidPeerAllowedIPs); err != nil </span><span class="cov8" title="1">{
+                                                        return
+                                                }</span>
+                                                <span class="cov8" title="1">cf.AllowedIPs = append(cf.AllowedIPs, pf)</span>
+                                        }
+                                }
+
+                                <span class="cov8" title="1">if v, ok := inif.Get("peer", "presharedkey"); ok </span><span class="cov8" title="1">{
+                                        if cf.PresharedKey, err = hex.DecodeString(v); err != nil </span><span class="cov8" title="1">{
+                                                err = errors.Join(ErrInvalidPeerPresharedKey, err)
+                                        }</span>
+                                }
+
+                                <span class="cov8" title="1">if err == nil </span><span class="cov8" title="1">{
+                                        if v, ok := inif.Get("peer", "persistentkeepalive"); ok </span><span class="cov8" title="1">{
+                                                if cf.PersistentKeepalive, err = strconv.Atoi(v); err != nil </span><span class="cov8" title="1">{
+                                                        err = errors.Join(ErrInvalidPeerPersistentKeepalive, err)
+                                                }</span>
+                                        }
+                                }
+
+                                <span class="cov8" title="1">if err == nil </span><span class="cov8" title="1">{
+                                        if v, ok := inif.Get("interface", "listenport"); ok </span><span class="cov8" title="1">{
+                                                if cf.ListenPort, err = strconv.Atoi(v); err != nil || cf.ListenPort &lt; 1 || cf.ListenPort &gt; 0xFFFF </span><span class="cov8" title="1">{
+                                                        err = errors.Join(ErrInvalidInterfaceListenPort, err)
+                                                }</span>
+                                        }
+                                }
+
+                                <span class="cov8" title="1">if err == nil </span><span class="cov8" title="1">{
+                                        if v, ok := inif.Get("peer", "endpoint"); ok </span><span class="cov8" title="1">{
+                                                if cf.Endpoint, err = netip.ParseAddrPort(v); err != nil </span><span class="cov8" title="1">{
+                                                        err = errors.Join(ErrInvalidPeerEndpoint, err)
+                                                }</span>
+                                        }
+                                }
+
+                                <span class="cov8" title="1">if err == nil </span><span class="cov8" title="1">{
+                                        cf.LogLevel = opts.LogLevel
+                                        cfg = &amp;cf
+                                }</span>
+                        }
+                }
+        }
+
+        <span class="cov8" title="1">return</span>
+}
+
+func decodeKey(key string) (decoded []byte, err error) <span class="cov8" title="1">{
+        if decoded, err = base64.StdEncoding.DecodeString(key); err == nil </span><span class="cov8" title="1">{
+                if len(decoded) != 32 </span><span class="cov8" title="1">{
+                        err = ErrKeyLengthNot32Bytes
+                }</span>
+        }
+        <span class="cov8" title="1">return</span>
+}
+
+func mustAddress(addr string, fail error) (a netip.Addr, err error) <span class="cov8" title="1">{
+        if a, err = netip.ParseAddr(strings.TrimSpace(addr)); err != nil </span><span class="cov8" title="1">{
+                err = errors.Join(fail, err)
+        }</span>
+        <span class="cov8" title="1">return</span>
+}
+
+func mustPrefix(addr string, fail error) (pf netip.Prefix, err error) <span class="cov8" title="1">{
+        addr = strings.TrimSpace(addr)
+        if pf, err = netip.ParsePrefix(addr); err != nil </span><span class="cov8" title="1">{
+                var a netip.Addr
+                if a, err = netip.ParseAddr(addr); err != nil </span><span class="cov8" title="1">{
+                        err = errors.Join(fail, err)
+                }</span> else<span class="cov8" title="1"> {
+                        pf = netip.PrefixFrom(a, a.BitLen())
+                }</span>
+        }
+        <span class="cov8" title="1">return</span>
+}
+
+func mustGet(inif inifile.File, section, key string, fail error) (v string, err error) <span class="cov8" title="1">{
+        var ok bool
+        if v, ok = inif.Get(section, key); !ok </span><span class="cov8" title="1">{
+                err = fail
+        }</span>
+        <span class="cov8" title="1">return</span>
+}
+
+func mustDecode(inif inifile.File, section, key string, fail error) (v []byte, err error) <span class="cov8" title="1">{
+        var s string
+        if s, err = mustGet(inif, section, key, fail); err == nil </span><span class="cov8" title="1">{
+                if v, err = decodeKey(s); err != nil </span><span class="cov8" title="1">{
+                        err = errors.Join(fail, err)
+                }</span>
+        }
+        <span class="cov8" title="1">return</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package wgnet
+
+import (
+        "bytes"
+        "context"
+        "errors"
+        "math/rand/v2"
+        "net"
+        "net/netip"
+        "strconv"
+        "time"
+
+        "github.com/linkdata/deadlock"
+        "github.com/tailscale/wireguard-go/conn"
+        "github.com/tailscale/wireguard-go/device"
+        "github.com/tailscale/wireguard-go/tun"
+        "github.com/tailscale/wireguard-go/tun/netstack"
+        "golang.org/x/net/icmp"
+        "golang.org/x/net/ipv4"
+)
+
+type WgNet struct {
+        cfg *Config // read-only
+        tun tun.Device
+        mu  deadlock.Mutex // protects following
+        dev *device.Device
+        ns  *netstack.Net
+}
+
+var (
+        ErrUnsupportedNetwork = errors.New("unsupported network")
+        ErrInvalidPingReply   = errors.New("invalid ping reply")
+)
+
+func New(cfg *Config) *WgNet <span class="cov8" title="1">{
+        return &amp;WgNet{cfg: cfg}
+}</span>
+
+func (wgnet *WgNet) getnet() (ns *netstack.Net, err error) <span class="cov8" title="1">{
+        err = net.ErrClosed
+        if wgnet != nil </span><span class="cov8" title="1">{
+                wgnet.mu.Lock()
+                if ns = wgnet.ns; ns != nil </span><span class="cov8" title="1">{
+                        err = nil
+                }</span>
+                <span class="cov8" title="1">wgnet.mu.Unlock()</span>
+        }
+        <span class="cov8" title="1">return</span>
+}
+
+func (wgnet *WgNet) DialContext(ctx context.Context, network, address string) (conn net.Conn, err error) <span class="cov8" title="1">{
+        var ns *netstack.Net
+        if ns, err = wgnet.getnet(); err == nil </span><span class="cov8" title="1">{
+                conn, err = ns.DialContext(ctx, network, address)
+        }</span>
+        <span class="cov8" title="1">return</span>
+}
+
+func (wgnet *WgNet) Dial(network string, address string) (net.Conn, error) <span class="cov8" title="1">{
+        return wgnet.DialContext(context.Background(), network, address)
+}</span>
+
+// LookupHost implements net.DefaultResolver.LookupHost
+func (wgnet *WgNet) LookupHost(ctx context.Context, host string) (addrs []string, err error) <span class="cov8" title="1">{
+        var ns *netstack.Net
+        if ns, err = wgnet.getnet(); err == nil </span><span class="cov8" title="1">{
+                addrs, err = ns.LookupContextHost(ctx, host)
+        }</span>
+        <span class="cov8" title="1">return</span>
+}
+
+func (wgnet *WgNet) Ping4(ctx context.Context, address string) (latency time.Duration, err error) <span class="cov8" title="1">{
+        var ns *netstack.Net
+        if ns, err = wgnet.getnet(); err == nil </span><span class="cov8" title="1">{
+                var socket net.Conn
+                if socket, err = ns.DialContext(ctx, "ping4", address); err == nil </span><span class="cov8" title="1">{
+                        requestPing := icmp.Echo{
+                                Seq:  rand.IntN(1 &lt;&lt; 16), // #nosec G404
+                                Data: strconv.AppendInt([]byte("wgnet"), int64(rand.IntN(1&lt;&lt;32) /*#nosec G404*/), 16),
+                        }
+                        icmpBytes, _ := (&amp;icmp.Message{Type: ipv4.ICMPTypeEcho, Code: 0, Body: &amp;requestPing}).Marshal(nil)
+                        start := time.Now()
+                        dl := start.Add(time.Second * 10)
+                        if ctxdl, ok := ctx.Deadline(); ok </span><span class="cov8" title="1">{
+                                dl = ctxdl
+                        }</span>
+                        <span class="cov8" title="1">if err = socket.SetDeadline(dl); err == nil </span><span class="cov8" title="1">{
+                                if _, err = socket.Write(icmpBytes); err == nil </span><span class="cov8" title="1">{
+                                        var n int
+                                        if n, err = socket.Read(icmpBytes[:]); err == nil </span><span class="cov8" title="1">{
+                                                var replyPacket *icmp.Message
+                                                if replyPacket, err = icmp.ParseMessage(1, icmpBytes[:n]); err == nil </span><span class="cov8" title="1">{
+                                                        err = ErrInvalidPingReply
+                                                        if replyPing, ok := replyPacket.Body.(*icmp.Echo); ok </span><span class="cov8" title="1">{
+                                                                if replyPing.Seq == requestPing.Seq &amp;&amp; bytes.Equal(replyPing.Data, requestPing.Data) </span><span class="cov8" title="1">{
+                                                                        latency = time.Since(start)
+                                                                        err = nil
+                                                                }</span>
+                                                        }
+                                                }
+                                        }
+                                }
+                        }
+                }
+        }
+        <span class="cov8" title="1">return</span>
+}
+
+func (wgnet *WgNet) Open() (err error) <span class="cov8" title="1">{
+        _ = wgnet.Close()
+        wgnet.mu.Lock()
+        defer wgnet.mu.Unlock()
+        var addrs []netip.Addr
+        for _, pf := range wgnet.cfg.Addresses </span><span class="cov8" title="1">{
+                addrs = append(addrs, pf.Addr())
+        }</span>
+        <span class="cov8" title="1">if wgnet.tun, wgnet.ns, err = netstack.CreateNetTUN(addrs, wgnet.cfg.DNS, 1420); err == nil </span><span class="cov8" title="1">{
+                wgnet.dev = device.NewDevice(wgnet.tun, conn.NewDefaultBind(), device.NewLogger(wgnet.cfg.LogLevel, "wgnet"))
+                if err = wgnet.dev.IpcSet(wgnet.cfg.UapiConf()); err == nil </span><span class="cov8" title="1">{
+                        if err = wgnet.dev.Up(); err == nil </span><span class="cov8" title="1">{
+                                return
+                        }</span>
+                }
+        }
+        <span class="cov8" title="1">wgnet.ns = nil
+        if dev := wgnet.dev; dev != nil </span><span class="cov8" title="1">{
+                wgnet.dev = nil
+                _ = wgnet.close(dev)
+        }</span>
+        <span class="cov8" title="1">return</span>
+}
+
+func (wgnet *WgNet) closing() (dev *device.Device) <span class="cov8" title="1">{
+        wgnet.mu.Lock()
+        if wgnet.ns != nil </span><span class="cov8" title="1">{
+                dev = wgnet.dev
+                wgnet.ns = nil
+                wgnet.dev = nil
+        }</span>
+        <span class="cov8" title="1">wgnet.mu.Unlock()
+        return</span>
+}
+
+type deviceLoad interface {
+        IsUnderLoad() bool
+        Close()
+}
+
+func WaitForNoLoad(dev deviceLoad, sleeptime, closetime, maxtime time.Duration) <span class="cov8" title="1">{
+        var waited time.Duration
+        var noload time.Duration
+        for waited &lt; maxtime </span><span class="cov8" title="1">{
+                time.Sleep(sleeptime)
+                waited += sleeptime
+                noload += sleeptime
+                if dev.IsUnderLoad() </span><span class="cov8" title="1">{
+                        noload = 0
+                }</span>
+                <span class="cov8" title="1">if noload &gt;= closetime </span><span class="cov8" title="1">{
+                        dev.Close()
+                        return
+                }</span>
+        }
+}
+
+func (wgnet *WgNet) close(dev *device.Device) (err error) <span class="cov8" title="1">{
+        wgnet.tun = nil // dev.Close() will close the TUN as well
+        dev.RemoveAllPeers()
+        go WaitForNoLoad(dev, time.Millisecond*100, time.Second*10, time.Second*60)
+        return
+}</span>
+
+func (wgnet *WgNet) Close() (err error) <span class="cov8" title="1">{
+        if wgnet != nil </span><span class="cov8" title="1">{
+                if dev := wgnet.closing(); dev != nil </span><span class="cov8" title="1">{
+                        err = wgnet.close(dev)
+                }</span>
+        }
+        <span class="cov8" title="1">return</span>
+}
+
+func (wgnet *WgNet) Listen(network string, address string) (l net.Listener, err error) <span class="cov8" title="1">{
+        var addrport netip.AddrPort
+        if addrport, err = netip.ParseAddrPort(address); err == nil </span><span class="cov8" title="1">{
+                var ns *netstack.Net
+                if ns, err = wgnet.getnet(); err == nil </span><span class="cov8" title="1">{
+                        err = ErrUnsupportedNetwork
+                        switch network </span>{
+                        case "tcp", "tcp4", "tcp6":<span class="cov8" title="1">
+                                l, err = ns.ListenTCPAddrPort(addrport)</span>
+                        }
+                }
+        }
+        <span class="cov8" title="1">return</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
