@@ -163,7 +163,7 @@ type deviceLoad interface {
 	Close()
 }
 
-func WaitForNoLoad(dev deviceLoad, sleeptime, closetime, maxtime time.Duration) {
+func waitForNoLoad(dev deviceLoad, sleeptime, closetime, maxtime time.Duration) {
 	var waited time.Duration
 	var noload time.Duration
 	for waited < maxtime {
@@ -184,7 +184,7 @@ func WaitForNoLoad(dev deviceLoad, sleeptime, closetime, maxtime time.Duration) 
 func (wgnet *WgNet) close(dev *device.Device) (err error) {
 	wgnet.tun = nil // dev.Close() will close the TUN as well
 	dev.RemoveAllPeers()
-	go WaitForNoLoad(dev, time.Millisecond*100, time.Second*10, time.Second*60)
+	go waitForNoLoad(dev, time.Millisecond*100, time.Second*10, time.Second*60)
 	return
 }
 

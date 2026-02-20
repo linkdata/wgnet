@@ -5,8 +5,7 @@ import (
 	"errors"
 	"io"
 	"net"
-	"net/netip"
-	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -60,72 +59,32 @@ func TestPing4WithDialer_ClosesSocketOnError(t *testing.T) {
 	}
 }
 
-func TestMustEndpoint_PrefersIPv4FromLookup(t *testing.T) {
-	origLookupNetIP := endpointLookupNetIP
-	endpointLookupNetIP = func(context.Context, string, string) ([]netip.Addr, error) {
-		return []netip.Addr{
-			netip.MustParseAddr("2001:db8::1"),
-			netip.MustParseAddr("192.0.2.10"),
-		}, nil
-	}
-	t.Cleanup(func() { endpointLookupNetIP = origLookupNetIP })
+type loadwaiter struct {
+	underLoad atomic.Bool
+	closed    atomic.Bool
+}
 
-	endpoint, err := mustEndpoint("example.test:51820", ErrInvalidPeerEndpoint)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !endpoint.IsValid() {
-		t.Fatal("expected valid endpoint")
-	}
-	if !endpoint.Addr().Is4() {
-		t.Fatalf("expected IPv4 endpoint, got %s", endpoint.Addr())
-	}
-	if endpoint.Addr() != netip.MustParseAddr("192.0.2.10") {
-		t.Fatalf("endpoint addr = %s, want 192.0.2.10", endpoint.Addr())
+func (lw *loadwaiter) IsUnderLoad() bool { return lw.underLoad.Load() }
+func (lw *loadwaiter) Close()            { lw.closed.Store(true) }
+
+func TestWaitForNoLoad(t *testing.T) {
+	var lw loadwaiter
+	lw.underLoad.Store(true)
+	go func() {
+		time.Sleep(time.Millisecond * 50)
+		lw.underLoad.Store(false)
+	}()
+	waitForNoLoad(&lw, time.Millisecond, time.Millisecond*10, time.Millisecond*100)
+	if !lw.closed.Load() {
+		t.Fatal("expected device close after no-load period")
 	}
 }
 
-func TestMustEndpoint_FallsBackToIPv6WhenIPv4Missing(t *testing.T) {
-	origLookupNetIP := endpointLookupNetIP
-	endpointLookupNetIP = func(context.Context, string, string) ([]netip.Addr, error) {
-		return []netip.Addr{
-			netip.MustParseAddr("2001:db8::2"),
-		}, nil
-	}
-	t.Cleanup(func() { endpointLookupNetIP = origLookupNetIP })
-
-	endpoint, err := mustEndpoint("example.test:51820", ErrInvalidPeerEndpoint)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !endpoint.IsValid() {
-		t.Fatal("expected valid endpoint")
-	}
-	if !endpoint.Addr().Is6() {
-		t.Fatalf("expected IPv6 endpoint, got %s", endpoint.Addr())
-	}
-	if endpoint.Addr() != netip.MustParseAddr("2001:db8::2") {
-		t.Fatalf("endpoint addr = %s, want 2001:db8::2", endpoint.Addr())
-	}
-}
-
-func TestMustEndpoint_PortOutOfRange(t *testing.T) {
-	_, err := mustEndpoint("example.test:70000", ErrInvalidPeerEndpoint)
-	if !errors.Is(err, ErrInvalidPeerEndpoint) {
-		t.Fatalf("expected %v in error, got %v", ErrInvalidPeerEndpoint, err)
-	}
-	if !errors.Is(err, ErrInvalidPeerEndpointPort) {
-		t.Fatalf("expected %v in error, got %v", ErrInvalidPeerEndpointPort, err)
-	}
-}
-
-func TestMustEndpoint_PortNotNumeric(t *testing.T) {
-	_, err := mustEndpoint("example.test:not-a-number", ErrInvalidPeerEndpoint)
-	if !errors.Is(err, ErrInvalidPeerEndpoint) {
-		t.Fatalf("expected %v in error, got %v", ErrInvalidPeerEndpoint, err)
-	}
-	var numErr *strconv.NumError
-	if !errors.As(err, &numErr) {
-		t.Fatalf("expected strconv.NumError in error chain, got %v", err)
+func TestWaitForNoLoad_ClosesAtMaxTime(t *testing.T) {
+	var lw loadwaiter
+	lw.underLoad.Store(true)
+	waitForNoLoad(&lw, time.Millisecond, time.Millisecond*10, time.Millisecond*20)
+	if !lw.closed.Load() {
+		t.Fatal("expected device close at max wait time")
 	}
 }

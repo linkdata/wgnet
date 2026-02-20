@@ -10,6 +10,9 @@ WireGuard ContextDialer for Go.
 `wgnet.New` requires a non-nil `*wgnet.Config`. Calling `Open` on an instance
 created with `nil` config will panic.
 
+`[Peer] Endpoint` must be an IP literal with port (for example `203.0.113.10:51820`
+or `[2001:db8::1]:51820`). Hostnames are not resolved by `Parse`.
+
 `(*WgNet).Close` is intentionally asynchronous. It detaches the netstack
 immediately and returns before the underlying WireGuard device is guaranteed
 to release OS resources (for example the UDP listen port). This means an

@@ -315,7 +315,7 @@ func TestParse(t *testing.T) {
 	}
 }
 
-func TestParse_EndpointHostname(t *testing.T) {
+func TestParse_EndpointMustBeIP(t *testing.T) {
 	text := `
 		[interface]
 		privatekey = WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E=
@@ -325,20 +325,10 @@ func TestParse_EndpointHostname(t *testing.T) {
 		endpoint = localhost:51820
 	`
 	cfg, err := wgnet.Parse(strings.NewReader(text), nil)
-	if err == nil {
-		if cfg == nil {
-			t.Fatal("expected config")
-		}
-		if !cfg.Endpoint.IsValid() {
-			t.Fatal("expected valid endpoint")
-		}
-		if cfg.Endpoint.Port() != 51820 {
-			t.Fatalf("endpoint port = %d, want 51820", cfg.Endpoint.Port())
-		}
-		if !cfg.Endpoint.Addr().IsLoopback() {
-			t.Fatalf("endpoint addr = %s, want loopback", cfg.Endpoint.Addr())
-		}
-	} else {
-		t.Fatal(err)
+	if cfg != nil {
+		t.Fatalf("expected nil config, got %#v", cfg)
+	}
+	if !errors.Is(err, wgnet.ErrInvalidPeerEndpoint) {
+		t.Fatalf("expected error %v, got %v", wgnet.ErrInvalidPeerEndpoint, err)
 	}
 }
