@@ -315,6 +315,45 @@ func TestParse(t *testing.T) {
 	}
 }
 
+func TestParse_WrongLengthKeyReturnsNilBytes(t *testing.T) {
+	// decodeKey and decodeHexKey must return nil decoded bytes on length error.
+	shortKeyBase64 := "Zm9vYmFy" // "foobar" = 6 bytes, not 32
+	text := `
+		[interface]
+		privatekey = ` + shortKeyBase64 + `
+		address = 192.168.1.0/24
+		[peer]
+		publickey = WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E=
+	`
+	cfg, err := wgnet.Parse(strings.NewReader(text), nil)
+	if cfg != nil {
+		t.Fatalf("expected nil config, got %#v", cfg)
+	}
+	if !errors.Is(err, wgnet.ErrKeyLengthNot32Bytes) {
+		t.Fatalf("expected error %v, got %v", wgnet.ErrKeyLengthNot32Bytes, err)
+	}
+}
+
+func TestParse_WrongLengthHexPSKFallsBackToBase64(t *testing.T) {
+	// A hex string that decodes to != 32 bytes must not be accepted,
+	// and should fall through to base64 decoding.
+	text := `
+		[interface]
+		privatekey = WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E=
+		address = 192.168.1.0/24
+		[peer]
+		publickey = WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E=
+		presharedkey = 1234abcd
+	`
+	cfg, err := wgnet.Parse(strings.NewReader(text), nil)
+	if cfg != nil {
+		t.Fatalf("expected nil config for short hex PSK, got %#v", cfg)
+	}
+	if !errors.Is(err, wgnet.ErrInvalidPeerPresharedKey) {
+		t.Fatalf("expected error %v, got %v", wgnet.ErrInvalidPeerPresharedKey, err)
+	}
+}
+
 func TestParse_EndpointMustBeIP(t *testing.T) {
 	text := `
 		[interface]

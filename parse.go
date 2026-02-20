@@ -116,6 +116,7 @@ func Parse(r io.Reader, opts *Options) (cfg *Config, err error) {
 func decodeHexKey(key string) (decoded []byte, err error) {
 	if decoded, err = hex.DecodeString(key); err == nil {
 		if len(decoded) != 32 {
+			decoded = nil
 			err = ErrKeyLengthNot32Bytes
 		}
 	}
@@ -125,6 +126,7 @@ func decodeHexKey(key string) (decoded []byte, err error) {
 func decodeKey(key string) (decoded []byte, err error) {
 	if decoded, err = base64.StdEncoding.DecodeString(key); err == nil {
 		if len(decoded) != 32 {
+			decoded = nil
 			err = ErrKeyLengthNot32Bytes
 		}
 	}
