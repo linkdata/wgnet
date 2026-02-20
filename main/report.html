@@ -499,7 +499,7 @@ func (wgnet *WgNet) Open() (err error) <span class="cov8" title="1">{
                         wgnet.ns = nil
                         if dev := wgnet.dev; dev != nil </span><span class="cov8" title="1">{
                                 wgnet.dev = nil
-                                _ = wgnet.close(dev)
+                                wgnet.close(dev)
                         }</span>
                 }
         }
@@ -541,10 +541,9 @@ func waitForNoLoad(dev deviceLoad, sleeptime, closetime, maxtime time.Duration) 
         <span class="cov8" title="1">dev.Close()</span>
 }
 
-func (wgnet *WgNet) close(dev *device.Device) (err error) <span class="cov8" title="1">{
+func (wgnet *WgNet) close(dev *device.Device) <span class="cov8" title="1">{
         dev.RemoveAllPeers()
         go waitForNoLoad(dev, time.Millisecond*100, time.Second*10, time.Second*60)
-        return
 }</span>
 
 // Close starts asynchronous shutdown of the underlying WireGuard device.
@@ -555,7 +554,7 @@ func (wgnet *WgNet) close(dev *device.Device) (err error) <span class="cov8" tit
 func (wgnet *WgNet) Close() (err error) <span class="cov8" title="1">{
         if wgnet != nil </span><span class="cov8" title="1">{
                 if dev := wgnet.closing(); dev != nil </span><span class="cov8" title="1">{
-                        err = wgnet.close(dev)
+                        wgnet.close(dev)
                 }</span>
         }
         <span class="cov8" title="1">return</span>
