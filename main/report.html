@@ -455,11 +455,13 @@ func ping4WithDialer(ctx context.Context, dialer contextDialer, address string) 
                                         var replyPacket *icmp.Message
                                         if replyPacket, err = icmp.ParseMessage(1, icmpBytes[:n]); err == nil </span><span class="cov8" title="1">{
                                                 err = ErrInvalidPingReply
-                                                if replyPing, ok := replyPacket.Body.(*icmp.Echo); ok </span><span class="cov8" title="1">{
-                                                        if replyPing.Seq == requestPing.Seq &amp;&amp; bytes.Equal(replyPing.Data, requestPing.Data) </span><span class="cov8" title="1">{
-                                                                latency = time.Since(start)
-                                                                err = nil
-                                                        }</span>
+                                                if replyPacket.Type == ipv4.ICMPTypeEchoReply </span><span class="cov8" title="1">{
+                                                        if replyPing, ok := replyPacket.Body.(*icmp.Echo); ok </span><span class="cov8" title="1">{
+                                                                if replyPing.Seq == requestPing.Seq &amp;&amp; bytes.Equal(replyPing.Data, requestPing.Data) </span><span class="cov8" title="1">{
+                                                                        latency = time.Since(start)
+                                                                        err = nil
+                                                                }</span>
+                                                        }
                                                 }
                                         }
                                 }
@@ -470,26 +472,30 @@ func ping4WithDialer(ctx context.Context, dialer contextDialer, address string) 
 }
 
 func (wgnet *WgNet) Open() (err error) <span class="cov8" title="1">{
-        _ = wgnet.Close()
-        wgnet.mu.Lock()
-        defer wgnet.mu.Unlock()
-        var addrs []netip.Addr
-        for _, pf := range wgnet.cfg.Addresses </span><span class="cov8" title="1">{
-                addrs = append(addrs, pf.Addr())
-        }</span>
-        <span class="cov8" title="1">if wgnet.tun, wgnet.ns, err = netstack.CreateNetTUN(addrs, wgnet.cfg.DNS, 1420); err == nil </span><span class="cov8" title="1">{
-                wgnet.dev = device.NewDevice(wgnet.tun, conn.NewDefaultBind(), device.NewLogger(wgnet.cfg.LogLevel, "wgnet"))
-                if err = wgnet.dev.IpcSet(wgnet.cfg.UapiConf()); err == nil </span><span class="cov8" title="1">{
-                        if err = wgnet.dev.Up(); err == nil </span><span class="cov8" title="1">{
-                                return
+        err = net.ErrClosed
+        if wgnet != nil </span><span class="cov8" title="1">{
+                _ = wgnet.Close()
+                wgnet.mu.Lock()
+                defer wgnet.mu.Unlock()
+                err = nil
+                var addrs []netip.Addr
+                for _, pf := range wgnet.cfg.Addresses </span><span class="cov8" title="1">{
+                        addrs = append(addrs, pf.Addr())
+                }</span>
+                <span class="cov8" title="1">if wgnet.tun, wgnet.ns, err = netstack.CreateNetTUN(addrs, wgnet.cfg.DNS, 1420); err == nil </span><span class="cov8" title="1">{
+                        wgnet.dev = device.NewDevice(wgnet.tun, conn.NewDefaultBind(), device.NewLogger(wgnet.cfg.LogLevel, "wgnet"))
+                        if err = wgnet.dev.IpcSet(wgnet.cfg.UapiConf()); err == nil </span><span class="cov8" title="1">{
+                                err = wgnet.dev.Up()
+                        }</span>
+                }
+                <span class="cov8" title="1">if err != nil </span><span class="cov8" title="1">{
+                        wgnet.ns = nil
+                        if dev := wgnet.dev; dev != nil </span><span class="cov8" title="1">{
+                                wgnet.dev = nil
+                                _ = wgnet.close(dev)
                         }</span>
                 }
         }
-        <span class="cov8" title="1">wgnet.ns = nil
-        if dev := wgnet.dev; dev != nil </span><span class="cov8" title="1">{
-                wgnet.dev = nil
-                _ = wgnet.close(dev)
-        }</span>
         <span class="cov8" title="1">return</span>
 }
 
