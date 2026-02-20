@@ -285,6 +285,7 @@ func Parse(r io.Reader, opts *Options) (cfg *Config, err error) <span class="cov
 func decodeHexKey(key string) (decoded []byte, err error) <span class="cov8" title="1">{
         if decoded, err = hex.DecodeString(key); err == nil </span><span class="cov8" title="1">{
                 if len(decoded) != 32 </span><span class="cov8" title="1">{
+                        decoded = nil
                         err = ErrKeyLengthNot32Bytes
                 }</span>
         }
@@ -294,6 +295,7 @@ func decodeHexKey(key string) (decoded []byte, err error) <span class="cov8" tit
 func decodeKey(key string) (decoded []byte, err error) <span class="cov8" title="1">{
         if decoded, err = base64.StdEncoding.DecodeString(key); err == nil </span><span class="cov8" title="1">{
                 if len(decoded) != 32 </span><span class="cov8" title="1">{
+                        decoded = nil
                         err = ErrKeyLengthNot32Bytes
                 }</span>
         }
