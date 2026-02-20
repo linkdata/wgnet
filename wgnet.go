@@ -32,6 +32,8 @@ var (
 	ErrInvalidPingReply   = errors.New("invalid ping reply")
 )
 
+// New creates a WgNet instance from cfg.
+// cfg must be non-nil. Calling Open on a WgNet created with nil cfg panics.
 func New(cfg *Config) *WgNet {
 	return &WgNet{cfg: cfg}
 }

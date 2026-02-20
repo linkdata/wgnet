@@ -7,6 +7,9 @@
 
 WireGuard ContextDialer for Go.
 
+`wgnet.New` requires a non-nil `*wgnet.Config`. Calling `Open` on an instance
+created with `nil` config will panic.
+
 ```go
 package main
 
