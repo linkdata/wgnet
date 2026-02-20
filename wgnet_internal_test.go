@@ -85,6 +85,30 @@ func TestMustEndpoint_PrefersIPv4FromLookup(t *testing.T) {
 	}
 }
 
+func TestMustEndpoint_FallsBackToIPv6WhenIPv4Missing(t *testing.T) {
+	origLookupNetIP := endpointLookupNetIP
+	endpointLookupNetIP = func(context.Context, string, string) ([]netip.Addr, error) {
+		return []netip.Addr{
+			netip.MustParseAddr("2001:db8::2"),
+		}, nil
+	}
+	t.Cleanup(func() { endpointLookupNetIP = origLookupNetIP })
+
+	endpoint, err := mustEndpoint("example.test:51820", ErrInvalidPeerEndpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !endpoint.IsValid() {
+		t.Fatal("expected valid endpoint")
+	}
+	if !endpoint.Addr().Is6() {
+		t.Fatalf("expected IPv6 endpoint, got %s", endpoint.Addr())
+	}
+	if endpoint.Addr() != netip.MustParseAddr("2001:db8::2") {
+		t.Fatalf("endpoint addr = %s, want 2001:db8::2", endpoint.Addr())
+	}
+}
+
 func TestMustEndpoint_PortOutOfRange(t *testing.T) {
 	_, err := mustEndpoint("example.test:70000", ErrInvalidPeerEndpoint)
 	if !errors.Is(err, ErrInvalidPeerEndpoint) {
