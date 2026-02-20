@@ -100,7 +100,9 @@ func ping4WithDialer(ctx context.Context, dialer contextDialer, address string) 
 		start := time.Now()
 		dl := start.Add(time.Second * 10)
 		if ctxdl, ok := ctx.Deadline(); ok {
-			dl = ctxdl
+			if ctxdl.Before(dl) {
+				dl = ctxdl
+			}
 		}
 		if err = socket.SetDeadline(dl); err == nil {
 			if _, err = socket.Write(icmpBytes); err == nil {
@@ -143,6 +145,7 @@ func (wgnet *WgNet) Open() (err error) {
 			}
 		}
 		if err != nil {
+			wgnet.tun = nil
 			wgnet.ns = nil
 			if dev := wgnet.dev; dev != nil {
 				wgnet.dev = nil
@@ -157,6 +160,7 @@ func (wgnet *WgNet) closing() (dev *device.Device) {
 	wgnet.mu.Lock()
 	if wgnet.ns != nil {
 		dev = wgnet.dev
+		wgnet.tun = nil
 		wgnet.ns = nil
 		wgnet.dev = nil
 	}
@@ -188,7 +192,6 @@ func waitForNoLoad(dev deviceLoad, sleeptime, closetime, maxtime time.Duration) 
 }
 
 func (wgnet *WgNet) close(dev *device.Device) (err error) {
-	wgnet.tun = nil // dev.Close() will close the TUN as well
 	dev.RemoveAllPeers()
 	go waitForNoLoad(dev, time.Millisecond*100, time.Second*10, time.Second*60)
 	return
