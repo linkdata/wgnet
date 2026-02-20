@@ -148,7 +148,7 @@ func (cfg *Config) String() string <span class="cov8" title="1">{
                 fmt.Fprintf(&amp;buf, "\nEndpoint = %s", cfg.Endpoint.String())
         }</span>
         <span class="cov8" title="1">if len(cfg.PresharedKey) &gt; 0 </span><span class="cov8" title="1">{
-                fmt.Fprintf(&amp;buf, "\nPresharedKey = %x", cfg.PresharedKey)
+                fmt.Fprintf(&amp;buf, "\nPresharedKey = %s", base64.StdEncoding.EncodeToString(cfg.PresharedKey))
         }</span>
         <span class="cov8" title="1">if cfg.PersistentKeepalive &gt; 0 </span><span class="cov8" title="1">{
                 fmt.Fprintf(&amp;buf, "\nPersistentKeepalive = %v", cfg.PersistentKeepalive)
@@ -448,8 +448,10 @@ func ping4WithDialer(ctx context.Context, dialer contextDialer, address string) 
                 start := time.Now()
                 dl := start.Add(time.Second * 10)
                 if ctxdl, ok := ctx.Deadline(); ok </span><span class="cov8" title="1">{
-                        dl = ctxdl
-                }</span>
+                        if ctxdl.Before(dl) </span><span class="cov8" title="1">{
+                                dl = ctxdl
+                        }</span>
+                }
                 <span class="cov8" title="1">if err = socket.SetDeadline(dl); err == nil </span><span class="cov8" title="1">{
                         if _, err = socket.Write(icmpBytes); err == nil </span><span class="cov8" title="1">{
                                 var n int
@@ -491,6 +493,7 @@ func (wgnet *WgNet) Open() (err error) <span class="cov8" title="1">{
                         }</span>
                 }
                 <span class="cov8" title="1">if err != nil </span><span class="cov8" title="1">{
+                        wgnet.tun = nil
                         wgnet.ns = nil
                         if dev := wgnet.dev; dev != nil </span><span class="cov8" title="1">{
                                 wgnet.dev = nil
@@ -505,6 +508,7 @@ func (wgnet *WgNet) closing() (dev *device.Device) <span class="cov8" title="1">
         wgnet.mu.Lock()
         if wgnet.ns != nil </span><span class="cov8" title="1">{
                 dev = wgnet.dev
+                wgnet.tun = nil
                 wgnet.ns = nil
                 wgnet.dev = nil
         }</span>
@@ -536,7 +540,6 @@ func waitForNoLoad(dev deviceLoad, sleeptime, closetime, maxtime time.Duration) 
 }
 
 func (wgnet *WgNet) close(dev *device.Device) (err error) <span class="cov8" title="1">{
-        wgnet.tun = nil // dev.Close() will close the TUN as well
         dev.RemoveAllPeers()
         go waitForNoLoad(dev, time.Millisecond*100, time.Second*10, time.Second*60)
         return
