@@ -92,7 +92,7 @@ func Parse(r io.Reader, opts *Options) (cfg *Config, err error) {
 
 				if err == nil {
 					if v, ok := inif.Get("interface", "listenport"); ok {
-						if cf.ListenPort, err = strconv.Atoi(v); err != nil || cf.ListenPort < 1 || cf.ListenPort > 0xFFFF {
+						if cf.ListenPort, err = strconv.Atoi(v); err != nil || cf.ListenPort < 0 || cf.ListenPort > 0xFFFF {
 							err = errors.Join(ErrInvalidInterfaceListenPort, err)
 						}
 					}
