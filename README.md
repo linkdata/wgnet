@@ -10,6 +10,10 @@ WireGuard ContextDialer for Go.
 `wgnet.New` requires a non-nil `*wgnet.Config`. Calling `Open` on an instance
 created with `nil` config will panic.
 
+`wgnet.Parse` requires valid input. The reader must be non-nil and contain a
+valid WireGuard INI configuration. If `opts` is nil, `Parse` uses
+`wgnet.DefaultOptions`, which must be non-nil.
+
 `[Peer] Endpoint` must be an IP literal with port (for example `203.0.113.10:51820`
 or `[2001:db8::1]:51820`). Hostnames are not resolved by `Parse`.
 

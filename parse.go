@@ -25,6 +25,8 @@ var ErrInvalidPeerPersistentKeepalive = errors.New("invalid [Peer] PersistentKee
 var ErrInvalidInterfaceListenPort = errors.New("invalid [Interface] ListenPort")
 
 // Parse reads a WireGuard configuration file, validates it and returns a Config.
+// The reader must be non-nil and contain a valid WireGuard INI config.
+// If opts is nil, Parse uses DefaultOptions, which must also be non-nil.
 func Parse(r io.Reader, opts *Options) (cfg *Config, err error) {
 	if opts == nil {
 		opts = DefaultOptions
