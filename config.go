@@ -73,7 +73,7 @@ func (cfg *Config) String() string {
 		fmt.Fprintf(&buf, "\nEndpoint = %s", cfg.Endpoint.String())
 	}
 	if len(cfg.PresharedKey) > 0 {
-		fmt.Fprintf(&buf, "\nPresharedKey = %x", cfg.PresharedKey)
+		fmt.Fprintf(&buf, "\nPresharedKey = %s", base64.StdEncoding.EncodeToString(cfg.PresharedKey))
 	}
 	if cfg.PersistentKeepalive > 0 {
 		fmt.Fprintf(&buf, "\nPersistentKeepalive = %v", cfg.PersistentKeepalive)
