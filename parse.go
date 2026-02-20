@@ -71,14 +71,14 @@ func Parse(r io.Reader, opts *Options) (cfg *Config, err error) {
 				}
 
 				if v, ok := inif.Get("peer", "presharedkey"); ok {
-					if cf.PresharedKey, err = decodeHexKey(v); err != nil {
+					if cf.PresharedKey, err = decodePresharedKey(v); err != nil {
 						err = errors.Join(ErrInvalidPeerPresharedKey, err)
 					}
 				}
 
 				if err == nil {
 					if v, ok := inif.Get("peer", "persistentkeepalive"); ok {
-						if cf.PersistentKeepalive, err = strconv.Atoi(v); err != nil {
+						if cf.PersistentKeepalive, err = strconv.Atoi(v); err != nil || cf.PersistentKeepalive < 0 || cf.PersistentKeepalive > 0xFFFF {
 							err = errors.Join(ErrInvalidPeerPersistentKeepalive, err)
 						}
 					}
@@ -125,6 +125,13 @@ func decodeKey(key string) (decoded []byte, err error) {
 		if len(decoded) != 32 {
 			err = ErrKeyLengthNot32Bytes
 		}
+	}
+	return
+}
+
+func decodePresharedKey(key string) (decoded []byte, err error) {
+	if decoded, err = decodeHexKey(key); err != nil {
+		decoded, err = decodeKey(key)
 	}
 	return
 }

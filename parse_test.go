@@ -153,8 +153,8 @@ func TestParse(t *testing.T) {
 		{
 			name: "ErrInvalidPeerPersistentKeepalive",
 			text: `
-				[interface]
-				privatekey = WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E=
+					[interface]
+					privatekey = WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E=
 				address = 192.168.1.0/24
 				dns = 1.1.1.1
 				[peer]
@@ -167,10 +167,42 @@ func TestParse(t *testing.T) {
 			wantErr: wgnet.ErrInvalidPeerPersistentKeepalive,
 		},
 		{
+			name: "ErrInvalidPeerPersistentKeepaliveNegative",
+			text: `
+					[interface]
+					privatekey = WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E=
+					address = 192.168.1.0/24
+					dns = 1.1.1.1
+					[peer]
+					publickey = WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E=
+					endpoint = 10.0.0.1:1
+					persistentkeepalive = -1
+					`,
+			opts:    nil,
+			wantCfg: nil,
+			wantErr: wgnet.ErrInvalidPeerPersistentKeepalive,
+		},
+		{
+			name: "ErrInvalidPeerPersistentKeepaliveTooLarge",
+			text: `
+					[interface]
+					privatekey = WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E=
+					address = 192.168.1.0/24
+					dns = 1.1.1.1
+					[peer]
+					publickey = WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E=
+					endpoint = 10.0.0.1:1
+					persistentkeepalive = 70000
+					`,
+			opts:    nil,
+			wantCfg: nil,
+			wantErr: wgnet.ErrInvalidPeerPersistentKeepalive,
+		},
+		{
 			name: "ErrInvalidInterfaceListenPort",
 			text: `
-				[interface]
-				privatekey = WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E=
+					[interface]
+					privatekey = WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E=
 				address = 192.168.1.0/24
 				dns = 1.1.1.1
 				listenport = 123456
@@ -230,6 +262,36 @@ func TestParse(t *testing.T) {
 				ListenPort:          51820,
 				LogLevel:            1,
 				PersistentKeepalive: 10,
+			},
+			wantErr: nil,
+		},
+		{
+			name: "PresharedKeyBase64",
+			text: `
+					[interface]
+					privatekey = WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E=
+					address = 192.168.1.0/24
+					dns = 1.1.1.1
+					[peer]
+					publickey = WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E=
+					endpoint = 10.0.0.1:1
+					presharedkey = WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E=
+					`,
+			opts: nil,
+			wantCfg: &wgnet.Config{
+				Addresses: []netip.Prefix{
+					netip.MustParsePrefix("192.168.1.0/24"),
+				},
+				PrivateKey:   decodeKey("WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E="),
+				PublicKey:    decodeKey("WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E="),
+				PresharedKey: decodeKey("WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E="),
+				Endpoint:     netip.MustParseAddrPort("10.0.0.1:1"),
+				AllowedIPs: []netip.Prefix{
+					netip.MustParsePrefix("0.0.0.0/0"),
+				},
+				DNS: []netip.Addr{
+					netip.MustParseAddr("1.1.1.1"),
+				},
 			},
 			wantErr: nil,
 		},
