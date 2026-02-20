@@ -111,6 +111,24 @@ func TestPing4WithDialer_CapsDeadlineToTenSeconds(t *testing.T) {
 	}
 }
 
+func TestPing4WithDialer_UsesEarlierContextDeadline(t *testing.T) {
+	conn := &fakeConn{writeErr: io.ErrClosedPipe}
+	dialer := &fakeDialer{conn: conn}
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*2))
+	defer cancel()
+
+	_, err := ping4WithDialer(ctx, dialer, "127.0.0.1")
+	if !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("expected %v, got %v", io.ErrClosedPipe, err)
+	}
+
+	remaining := time.Until(conn.deadline)
+	if remaining < time.Second || remaining > time.Second*3 {
+		t.Fatalf("expected deadline near 2s from now, got %s", remaining)
+	}
+}
+
 type loadwaiter struct {
 	underLoad atomic.Bool
 	closed    atomic.Bool
