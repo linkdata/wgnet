@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"net"
+	"net/netip"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -55,5 +57,51 @@ func TestPing4WithDialer_ClosesSocketOnError(t *testing.T) {
 	}
 	if conn.closeCalls != 1 {
 		t.Fatalf("expected 1 close call, got %d", conn.closeCalls)
+	}
+}
+
+func TestMustEndpoint_PrefersIPv4FromLookup(t *testing.T) {
+	origLookupNetIP := endpointLookupNetIP
+	endpointLookupNetIP = func(context.Context, string, string) ([]netip.Addr, error) {
+		return []netip.Addr{
+			netip.MustParseAddr("2001:db8::1"),
+			netip.MustParseAddr("192.0.2.10"),
+		}, nil
+	}
+	t.Cleanup(func() { endpointLookupNetIP = origLookupNetIP })
+
+	endpoint, err := mustEndpoint("example.test:51820", ErrInvalidPeerEndpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !endpoint.IsValid() {
+		t.Fatal("expected valid endpoint")
+	}
+	if !endpoint.Addr().Is4() {
+		t.Fatalf("expected IPv4 endpoint, got %s", endpoint.Addr())
+	}
+	if endpoint.Addr() != netip.MustParseAddr("192.0.2.10") {
+		t.Fatalf("endpoint addr = %s, want 192.0.2.10", endpoint.Addr())
+	}
+}
+
+func TestMustEndpoint_PortOutOfRange(t *testing.T) {
+	_, err := mustEndpoint("example.test:70000", ErrInvalidPeerEndpoint)
+	if !errors.Is(err, ErrInvalidPeerEndpoint) {
+		t.Fatalf("expected %v in error, got %v", ErrInvalidPeerEndpoint, err)
+	}
+	if !errors.Is(err, ErrInvalidPeerEndpointPort) {
+		t.Fatalf("expected %v in error, got %v", ErrInvalidPeerEndpointPort, err)
+	}
+}
+
+func TestMustEndpoint_PortNotNumeric(t *testing.T) {
+	_, err := mustEndpoint("example.test:not-a-number", ErrInvalidPeerEndpoint)
+	if !errors.Is(err, ErrInvalidPeerEndpoint) {
+		t.Fatalf("expected %v in error, got %v", ErrInvalidPeerEndpoint, err)
+	}
+	var numErr *strconv.NumError
+	if !errors.As(err, &numErr) {
+		t.Fatalf("expected strconv.NumError in error chain, got %v", err)
 	}
 }

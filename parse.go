@@ -28,6 +28,8 @@ var ErrInvalidInterfaceListenPort = errors.New("invalid [Interface] ListenPort")
 var ErrInvalidPeerEndpointPort = errors.New("invalid [Peer] Endpoint port")
 var ErrMissingPeerEndpointAddress = errors.New("missing [Peer] Endpoint address")
 
+var endpointLookupNetIP = net.DefaultResolver.LookupNetIP
+
 // Parse reads a WireGuard configuration file, validates it and returns a Config.
 func Parse(r io.Reader, opts *Options) (cfg *Config, err error) {
 	if opts == nil {
@@ -165,7 +167,7 @@ func mustEndpoint(v string, fail error) (endpoint netip.AddrPort, err error) {
 			if portNum, atoiErr := strconv.Atoi(port); atoiErr == nil {
 				if portNum >= 0 && portNum <= 0xFFFF {
 					var addrs []netip.Addr
-					if addrs, err = net.DefaultResolver.LookupNetIP(context.Background(), "ip", host); err == nil {
+					if addrs, err = endpointLookupNetIP(context.Background(), "ip", host); err == nil {
 						err = ErrMissingPeerEndpointAddress
 						for _, addr := range addrs {
 							if addr.Is4() {
