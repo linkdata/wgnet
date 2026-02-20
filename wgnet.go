@@ -149,7 +149,7 @@ func (wgnet *WgNet) Open() (err error) {
 			wgnet.ns = nil
 			if dev := wgnet.dev; dev != nil {
 				wgnet.dev = nil
-				_ = wgnet.close(dev)
+				wgnet.close(dev)
 			}
 		}
 	}
@@ -191,10 +191,9 @@ func waitForNoLoad(dev deviceLoad, sleeptime, closetime, maxtime time.Duration) 
 	dev.Close()
 }
 
-func (wgnet *WgNet) close(dev *device.Device) (err error) {
+func (wgnet *WgNet) close(dev *device.Device) {
 	dev.RemoveAllPeers()
 	go waitForNoLoad(dev, time.Millisecond*100, time.Second*10, time.Second*60)
-	return
 }
 
 // Close starts asynchronous shutdown of the underlying WireGuard device.
@@ -205,7 +204,7 @@ func (wgnet *WgNet) close(dev *device.Device) (err error) {
 func (wgnet *WgNet) Close() (err error) {
 	if wgnet != nil {
 		if dev := wgnet.closing(); dev != nil {
-			err = wgnet.close(dev)
+			wgnet.close(dev)
 		}
 	}
 	return
