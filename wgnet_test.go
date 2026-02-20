@@ -205,18 +205,31 @@ func TestWgNet_LookupHost_ExternalServer(t *testing.T) {
 }
 
 type loadwaiter struct {
-	atomic.Bool
+	underLoad atomic.Bool
+	closed    atomic.Bool
 }
 
-func (lw *loadwaiter) IsUnderLoad() bool { return lw.Load() }
-func (lw *loadwaiter) Close()            {}
+func (lw *loadwaiter) IsUnderLoad() bool { return lw.underLoad.Load() }
+func (lw *loadwaiter) Close()            { lw.closed.Store(true) }
 
 func TestWaitForNoLoad(t *testing.T) {
 	var lw loadwaiter
-	lw.Store(true)
+	lw.underLoad.Store(true)
 	go func() {
 		time.Sleep(time.Millisecond * 50)
-		lw.Store(false)
+		lw.underLoad.Store(false)
 	}()
 	wgnet.WaitForNoLoad(&lw, time.Millisecond, time.Millisecond*10, time.Millisecond*100)
+	if !lw.closed.Load() {
+		t.Fatal("expected device close after no-load period")
+	}
+}
+
+func TestWaitForNoLoad_ClosesAtMaxTime(t *testing.T) {
+	var lw loadwaiter
+	lw.underLoad.Store(true)
+	wgnet.WaitForNoLoad(&lw, time.Millisecond, time.Millisecond*10, time.Millisecond*20)
+	if !lw.closed.Load() {
+		t.Fatal("expected device close at max wait time")
+	}
 }

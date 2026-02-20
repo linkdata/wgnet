@@ -32,6 +32,10 @@ var (
 	ErrInvalidPingReply   = errors.New("invalid ping reply")
 )
 
+type contextDialer interface {
+	DialContext(ctx context.Context, network, address string) (net.Conn, error)
+}
+
 // New creates a WgNet instance from cfg.
 // cfg must be non-nil. Calling Open on a WgNet created with nil cfg panics.
 func New(cfg *Config) *WgNet {
@@ -74,30 +78,41 @@ func (wgnet *WgNet) LookupHost(ctx context.Context, host string) (addrs []string
 func (wgnet *WgNet) Ping4(ctx context.Context, address string) (latency time.Duration, err error) {
 	var ns *netstack.Net
 	if ns, err = wgnet.getnet(); err == nil {
-		var socket net.Conn
-		if socket, err = ns.DialContext(ctx, "ping4", address); err == nil {
-			requestPing := icmp.Echo{
-				Seq:  rand.IntN(1 << 16), // #nosec G404
-				Data: strconv.AppendInt([]byte("wgnet"), int64(rand.IntN(1<<32) /*#nosec G404*/), 16),
+		latency, err = ping4WithDialer(ctx, ns, address)
+	}
+	return
+}
+
+func ping4WithDialer(ctx context.Context, dialer contextDialer, address string) (latency time.Duration, err error) {
+	var socket net.Conn
+	if socket, err = dialer.DialContext(ctx, "ping4", address); err == nil {
+		defer func() {
+			var closeErr error
+			if closeErr = socket.Close(); err == nil {
+				err = closeErr
 			}
-			icmpBytes, _ := (&icmp.Message{Type: ipv4.ICMPTypeEcho, Code: 0, Body: &requestPing}).Marshal(nil)
-			start := time.Now()
-			dl := start.Add(time.Second * 10)
-			if ctxdl, ok := ctx.Deadline(); ok {
-				dl = ctxdl
-			}
-			if err = socket.SetDeadline(dl); err == nil {
-				if _, err = socket.Write(icmpBytes); err == nil {
-					var n int
-					if n, err = socket.Read(icmpBytes[:]); err == nil {
-						var replyPacket *icmp.Message
-						if replyPacket, err = icmp.ParseMessage(1, icmpBytes[:n]); err == nil {
-							err = ErrInvalidPingReply
-							if replyPing, ok := replyPacket.Body.(*icmp.Echo); ok {
-								if replyPing.Seq == requestPing.Seq && bytes.Equal(replyPing.Data, requestPing.Data) {
-									latency = time.Since(start)
-									err = nil
-								}
+		}()
+		requestPing := icmp.Echo{
+			Seq:  rand.IntN(1 << 16), // #nosec G404
+			Data: strconv.AppendInt([]byte("wgnet"), int64(rand.IntN(1<<32) /*#nosec G404*/), 16),
+		}
+		icmpBytes, _ := (&icmp.Message{Type: ipv4.ICMPTypeEcho, Code: 0, Body: &requestPing}).Marshal(nil)
+		start := time.Now()
+		dl := start.Add(time.Second * 10)
+		if ctxdl, ok := ctx.Deadline(); ok {
+			dl = ctxdl
+		}
+		if err = socket.SetDeadline(dl); err == nil {
+			if _, err = socket.Write(icmpBytes); err == nil {
+				var n int
+				if n, err = socket.Read(icmpBytes[:]); err == nil {
+					var replyPacket *icmp.Message
+					if replyPacket, err = icmp.ParseMessage(1, icmpBytes[:n]); err == nil {
+						err = ErrInvalidPingReply
+						if replyPing, ok := replyPacket.Body.(*icmp.Echo); ok {
+							if replyPing.Seq == requestPing.Seq && bytes.Equal(replyPing.Data, requestPing.Data) {
+								latency = time.Since(start)
+								err = nil
 							}
 						}
 					}
@@ -163,6 +178,7 @@ func WaitForNoLoad(dev deviceLoad, sleeptime, closetime, maxtime time.Duration) 
 			return
 		}
 	}
+	dev.Close()
 }
 
 func (wgnet *WgNet) close(dev *device.Device) (err error) {
