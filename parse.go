@@ -71,7 +71,7 @@ func Parse(r io.Reader, opts *Options) (cfg *Config, err error) {
 				}
 
 				if v, ok := inif.Get("peer", "presharedkey"); ok {
-					if cf.PresharedKey, err = hex.DecodeString(v); err != nil {
+					if cf.PresharedKey, err = decodeHexKey(v); err != nil {
 						err = errors.Join(ErrInvalidPeerPresharedKey, err)
 					}
 				}
@@ -108,6 +108,15 @@ func Parse(r io.Reader, opts *Options) (cfg *Config, err error) {
 		}
 	}
 
+	return
+}
+
+func decodeHexKey(key string) (decoded []byte, err error) {
+	if decoded, err = hex.DecodeString(key); err == nil {
+		if len(decoded) != 32 {
+			err = ErrKeyLengthNot32Bytes
+		}
+	}
 	return
 }
 

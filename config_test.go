@@ -16,7 +16,7 @@ DNS = 1.1.1.1,8.8.8.8,9.9.9.9
 [Peer]
 PublicKey = WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E=
 Endpoint = 10.0.0.1:1
-PresharedKey = 1234abcd
+PresharedKey = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
 PersistentKeepalive = 10
 AllowedIPs = 192.168.1.0/24,10.0.0.0/8
 `
@@ -42,7 +42,7 @@ func TestConfig_UapiConf(t *testing.T) {
 listen_port=6789
 public_key=583139415432556c50456641504765764c4c58745446783932554f4e59383351
 endpoint=10.0.0.1:1
-preshared_key=1234abcd
+preshared_key=000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
 allowed_ip=192.168.1.0/24
 allowed_ip=10.0.0.0/8
 persistent_keepalive_interval=10
