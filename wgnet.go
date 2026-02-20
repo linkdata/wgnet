@@ -188,6 +188,11 @@ func (wgnet *WgNet) close(dev *device.Device) (err error) {
 	return
 }
 
+// Close starts asynchronous shutdown of the underlying WireGuard device.
+// It returns after detaching the current netstack, before the device is
+// guaranteed to have released OS resources such as the UDP listen port.
+// Port release is performed in the background after sustained no-load or
+// at the maximum close timeout.
 func (wgnet *WgNet) Close() (err error) {
 	if wgnet != nil {
 		if dev := wgnet.closing(); dev != nil {

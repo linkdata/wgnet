@@ -10,6 +10,12 @@ WireGuard ContextDialer for Go.
 `wgnet.New` requires a non-nil `*wgnet.Config`. Calling `Open` on an instance
 created with `nil` config will panic.
 
+`(*WgNet).Close` is intentionally asynchronous. It detaches the netstack
+immediately and returns before the underlying WireGuard device is guaranteed
+to release OS resources (for example the UDP listen port). This means an
+immediate `Open` on another instance using the same listen port can fail
+transiently with `address already in use`.
+
 ```go
 package main
 
