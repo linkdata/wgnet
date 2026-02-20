@@ -26,4 +26,5 @@ go.work.sum
 
 *.wg
 .gocache/
+.claude/
 AGENTS.md
