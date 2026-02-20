@@ -25,3 +25,5 @@ go.work.sum
 .env
 
 *.wg
+.gocache/
+AGENTS.md
