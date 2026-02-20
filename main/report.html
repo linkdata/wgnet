@@ -170,12 +170,10 @@ func (cfg *Config) String() string <span class="cov8" title="1">{
 		<pre class="file" id="file1" style="display: none">package wgnet
 
 import (
-        "context"
         "encoding/base64"
         "encoding/hex"
         "errors"
         "io"
-        "net"
         "net/netip"
         "strconv"
         "strings"
@@ -194,10 +192,6 @@ var ErrInvalidPeerAllowedIPs = errors.New("invalid [Peer] AllowedIPs")
 var ErrInvalidPeerPresharedKey = errors.New("invalid [Peer] PresharedKey")
 var ErrInvalidPeerPersistentKeepalive = errors.New("invalid [Peer] PersistentKeepalive")
 var ErrInvalidInterfaceListenPort = errors.New("invalid [Interface] ListenPort")
-var ErrInvalidPeerEndpointPort = errors.New("invalid [Peer] Endpoint port")
-var ErrMissingPeerEndpointAddress = errors.New("missing [Peer] Endpoint address")
-
-var endpointLookupNetIP = net.DefaultResolver.LookupNetIP
 
 // Parse reads a WireGuard configuration file, validates it and returns a Config.
 func Parse(r io.Reader, opts *Options) (cfg *Config, err error) <span class="cov8" title="1">{
@@ -269,8 +263,10 @@ func Parse(r io.Reader, opts *Options) (cfg *Config, err error) <span class="cov
 
                                 <span class="cov8" title="1">if err == nil </span><span class="cov8" title="1">{
                                         if v, ok := inif.Get("peer", "endpoint"); ok </span><span class="cov8" title="1">{
-                                                cf.Endpoint, err = mustEndpoint(v, ErrInvalidPeerEndpoint)
-                                        }</span>
+                                                if cf.Endpoint, err = netip.ParseAddrPort(v); err != nil </span><span class="cov8" title="1">{
+                                                        err = errors.Join(ErrInvalidPeerEndpoint, err)
+                                                }</span>
+                                        }
                                 }
 
                                 <span class="cov8" title="1">if err == nil </span><span class="cov8" title="1">{
@@ -324,48 +320,6 @@ func mustPrefix(addr string, fail error) (pf netip.Prefix, err error) <span clas
                         err = errors.Join(fail, err)
                 }</span> else<span class="cov8" title="1"> {
                         pf = netip.PrefixFrom(a, a.BitLen())
-                }</span>
-        }
-        <span class="cov8" title="1">return</span>
-}
-
-func mustEndpoint(v string, fail error) (endpoint netip.AddrPort, err error) <span class="cov8" title="1">{
-        v = strings.TrimSpace(v)
-        if endpoint, err = netip.ParseAddrPort(v); err != nil </span><span class="cov8" title="1">{
-                if host, port, splitErr := net.SplitHostPort(v); splitErr == nil </span><span class="cov8" title="1">{
-                        if portNum, atoiErr := strconv.Atoi(port); atoiErr == nil </span><span class="cov8" title="1">{
-                                if portNum &gt;= 0 &amp;&amp; portNum &lt;= 0xFFFF </span><span class="cov8" title="1">{
-                                        var addrs []netip.Addr
-                                        if addrs, err = endpointLookupNetIP(context.Background(), "ip", host); err == nil </span><span class="cov8" title="1">{
-                                                err = ErrMissingPeerEndpointAddress
-                                                for _, addr := range addrs </span><span class="cov8" title="1">{
-                                                        if addr.Is4() </span><span class="cov8" title="1">{
-                                                                endpoint = netip.AddrPortFrom(addr, uint16(portNum))
-                                                                err = nil
-                                                                break</span>
-                                                        }
-                                                }
-                                                <span class="cov8" title="1">if err != nil </span><span class="cov8" title="1">{
-                                                        for _, addr := range addrs </span><span class="cov8" title="1">{
-                                                                if addr.IsValid() </span><span class="cov8" title="1">{
-                                                                        endpoint = netip.AddrPortFrom(addr, uint16(portNum))
-                                                                        err = nil
-                                                                        break</span>
-                                                                }
-                                                        }
-                                                }
-                                        }
-                                } else<span class="cov8" title="1"> {
-                                        err = ErrInvalidPeerEndpointPort
-                                }</span>
-                        } else<span class="cov8" title="1"> {
-                                err = atoiErr
-                        }</span>
-                } else<span class="cov8" title="1"> {
-                        err = splitErr
-                }</span>
-                <span class="cov8" title="1">if err != nil </span><span class="cov8" title="1">{
-                        err = errors.Join(fail, err)
                 }</span>
         }
         <span class="cov8" title="1">return</span>
@@ -555,7 +509,7 @@ type deviceLoad interface {
         Close()
 }
 
-func WaitForNoLoad(dev deviceLoad, sleeptime, closetime, maxtime time.Duration) <span class="cov8" title="1">{
+func waitForNoLoad(dev deviceLoad, sleeptime, closetime, maxtime time.Duration) <span class="cov8" title="1">{
         var waited time.Duration
         var noload time.Duration
         for waited &lt; maxtime </span><span class="cov8" title="1">{
@@ -576,7 +530,7 @@ func WaitForNoLoad(dev deviceLoad, sleeptime, closetime, maxtime time.Duration) 
 func (wgnet *WgNet) close(dev *device.Device) (err error) <span class="cov8" title="1">{
         wgnet.tun = nil // dev.Close() will close the TUN as well
         dev.RemoveAllPeers()
-        go WaitForNoLoad(dev, time.Millisecond*100, time.Second*10, time.Second*60)
+        go waitForNoLoad(dev, time.Millisecond*100, time.Second*10, time.Second*60)
         return
 }</span>
 
