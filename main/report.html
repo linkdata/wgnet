@@ -57,7 +57,7 @@
 				
 				<option value="file0">github.com/linkdata/wgnet/config.go (100.0%)</option>
 				
-				<option value="file1">github.com/linkdata/wgnet/parse.go (95.0%)</option>
+				<option value="file1">github.com/linkdata/wgnet/parse.go (100.0%)</option>
 				
 				<option value="file2">github.com/linkdata/wgnet/wgnet.go (100.0%)</option>
 				
@@ -197,6 +197,8 @@ var ErrInvalidInterfaceListenPort = errors.New("invalid [Interface] ListenPort")
 var ErrInvalidPeerEndpointPort = errors.New("invalid [Peer] Endpoint port")
 var ErrMissingPeerEndpointAddress = errors.New("missing [Peer] Endpoint address")
 
+var endpointLookupNetIP = net.DefaultResolver.LookupNetIP
+
 // Parse reads a WireGuard configuration file, validates it and returns a Config.
 func Parse(r io.Reader, opts *Options) (cfg *Config, err error) <span class="cov8" title="1">{
         if opts == nil </span><span class="cov8" title="1">{
@@ -334,10 +336,10 @@ func mustEndpoint(v string, fail error) (endpoint netip.AddrPort, err error) <sp
                         if portNum, atoiErr := strconv.Atoi(port); atoiErr == nil </span><span class="cov8" title="1">{
                                 if portNum &gt;= 0 &amp;&amp; portNum &lt;= 0xFFFF </span><span class="cov8" title="1">{
                                         var addrs []netip.Addr
-                                        if addrs, err = net.DefaultResolver.LookupNetIP(context.Background(), "ip", host); err == nil </span><span class="cov8" title="1">{
+                                        if addrs, err = endpointLookupNetIP(context.Background(), "ip", host); err == nil </span><span class="cov8" title="1">{
                                                 err = ErrMissingPeerEndpointAddress
                                                 for _, addr := range addrs </span><span class="cov8" title="1">{
-                                                        if addr.Is4() </span><span class="cov0" title="0">{
+                                                        if addr.Is4() </span><span class="cov8" title="1">{
                                                                 endpoint = netip.AddrPortFrom(addr, uint16(portNum))
                                                                 err = nil
                                                                 break</span>
@@ -353,10 +355,10 @@ func mustEndpoint(v string, fail error) (endpoint netip.AddrPort, err error) <sp
                                                         }
                                                 }
                                         }
-                                } else<span class="cov0" title="0"> {
+                                } else<span class="cov8" title="1"> {
                                         err = ErrInvalidPeerEndpointPort
                                 }</span>
-                        } else<span class="cov0" title="0"> {
+                        } else<span class="cov8" title="1"> {
                                 err = atoiErr
                         }</span>
                 } else<span class="cov8" title="1"> {
