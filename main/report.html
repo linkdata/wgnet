@@ -84,9 +84,9 @@ import (
 
 type Config struct {
         Addresses           []netip.Prefix
-        PrivateKey          []byte
-        PublicKey           []byte
-        PresharedKey        []byte
+        PrivateKey          []byte // #nosec G117
+        PublicKey           []byte // #nosec G117
+        PresharedKey        []byte // #nosec G117
         Endpoint            netip.AddrPort
         AllowedIPs          []netip.Prefix
         DNS                 []netip.Addr
@@ -240,14 +240,14 @@ func Parse(r io.Reader, opts *Options) (cfg *Config, err error) <span class="cov
                                 }
 
                                 <span class="cov8" title="1">if v, ok := inif.Get("peer", "presharedkey"); ok </span><span class="cov8" title="1">{
-                                        if cf.PresharedKey, err = hex.DecodeString(v); err != nil </span><span class="cov8" title="1">{
+                                        if cf.PresharedKey, err = decodePresharedKey(v); err != nil </span><span class="cov8" title="1">{
                                                 err = errors.Join(ErrInvalidPeerPresharedKey, err)
                                         }</span>
                                 }
 
                                 <span class="cov8" title="1">if err == nil </span><span class="cov8" title="1">{
                                         if v, ok := inif.Get("peer", "persistentkeepalive"); ok </span><span class="cov8" title="1">{
-                                                if cf.PersistentKeepalive, err = strconv.Atoi(v); err != nil </span><span class="cov8" title="1">{
+                                                if cf.PersistentKeepalive, err = strconv.Atoi(v); err != nil || cf.PersistentKeepalive &lt; 0 || cf.PersistentKeepalive &gt; 0xFFFF </span><span class="cov8" title="1">{
                                                         err = errors.Join(ErrInvalidPeerPersistentKeepalive, err)
                                                 }</span>
                                         }
@@ -280,12 +280,28 @@ func Parse(r io.Reader, opts *Options) (cfg *Config, err error) <span class="cov
         <span class="cov8" title="1">return</span>
 }
 
+func decodeHexKey(key string) (decoded []byte, err error) <span class="cov8" title="1">{
+        if decoded, err = hex.DecodeString(key); err == nil </span><span class="cov8" title="1">{
+                if len(decoded) != 32 </span><span class="cov8" title="1">{
+                        err = ErrKeyLengthNot32Bytes
+                }</span>
+        }
+        <span class="cov8" title="1">return</span>
+}
+
 func decodeKey(key string) (decoded []byte, err error) <span class="cov8" title="1">{
         if decoded, err = base64.StdEncoding.DecodeString(key); err == nil </span><span class="cov8" title="1">{
                 if len(decoded) != 32 </span><span class="cov8" title="1">{
                         err = ErrKeyLengthNot32Bytes
                 }</span>
         }
+        <span class="cov8" title="1">return</span>
+}
+
+func decodePresharedKey(key string) (decoded []byte, err error) <span class="cov8" title="1">{
+        if decoded, err = decodeHexKey(key); err != nil </span><span class="cov8" title="1">{
+                decoded, err = decodeKey(key)
+        }</span>
         <span class="cov8" title="1">return</span>
 }
 
@@ -362,6 +378,8 @@ var (
         ErrInvalidPingReply   = errors.New("invalid ping reply")
 )
 
+// New creates a WgNet instance from cfg.
+// cfg must be non-nil. Calling Open on a WgNet created with nil cfg panics.
 func New(cfg *Config) *WgNet <span class="cov8" title="1">{
         return &amp;WgNet{cfg: cfg}
 }</span>
