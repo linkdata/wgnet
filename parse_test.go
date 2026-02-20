@@ -314,3 +314,31 @@ func TestParse(t *testing.T) {
 		})
 	}
 }
+
+func TestParse_EndpointHostname(t *testing.T) {
+	text := `
+		[interface]
+		privatekey = WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E=
+		address = 192.168.1.0/24
+		[peer]
+		publickey = WDE5QVQyVWxQRWZBUEdldkxMWHRURng5MlVPTlk4M1E=
+		endpoint = localhost:51820
+	`
+	cfg, err := wgnet.Parse(strings.NewReader(text), nil)
+	if err == nil {
+		if cfg == nil {
+			t.Fatal("expected config")
+		}
+		if !cfg.Endpoint.IsValid() {
+			t.Fatal("expected valid endpoint")
+		}
+		if cfg.Endpoint.Port() != 51820 {
+			t.Fatalf("endpoint port = %d, want 51820", cfg.Endpoint.Port())
+		}
+		if !cfg.Endpoint.Addr().IsLoopback() {
+			t.Fatalf("endpoint addr = %s, want loopback", cfg.Endpoint.Addr())
+		}
+	} else {
+		t.Fatal(err)
+	}
+}

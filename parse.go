@@ -1,10 +1,12 @@
 package wgnet
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"io"
+	"net"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -23,6 +25,8 @@ var ErrInvalidPeerAllowedIPs = errors.New("invalid [Peer] AllowedIPs")
 var ErrInvalidPeerPresharedKey = errors.New("invalid [Peer] PresharedKey")
 var ErrInvalidPeerPersistentKeepalive = errors.New("invalid [Peer] PersistentKeepalive")
 var ErrInvalidInterfaceListenPort = errors.New("invalid [Interface] ListenPort")
+var ErrInvalidPeerEndpointPort = errors.New("invalid [Peer] Endpoint port")
+var ErrMissingPeerEndpointAddress = errors.New("missing [Peer] Endpoint address")
 
 // Parse reads a WireGuard configuration file, validates it and returns a Config.
 func Parse(r io.Reader, opts *Options) (cfg *Config, err error) {
@@ -94,9 +98,7 @@ func Parse(r io.Reader, opts *Options) (cfg *Config, err error) {
 
 				if err == nil {
 					if v, ok := inif.Get("peer", "endpoint"); ok {
-						if cf.Endpoint, err = netip.ParseAddrPort(v); err != nil {
-							err = errors.Join(ErrInvalidPeerEndpoint, err)
-						}
+						cf.Endpoint, err = mustEndpoint(v, ErrInvalidPeerEndpoint)
 					}
 				}
 
@@ -151,6 +153,48 @@ func mustPrefix(addr string, fail error) (pf netip.Prefix, err error) {
 			err = errors.Join(fail, err)
 		} else {
 			pf = netip.PrefixFrom(a, a.BitLen())
+		}
+	}
+	return
+}
+
+func mustEndpoint(v string, fail error) (endpoint netip.AddrPort, err error) {
+	v = strings.TrimSpace(v)
+	if endpoint, err = netip.ParseAddrPort(v); err != nil {
+		if host, port, splitErr := net.SplitHostPort(v); splitErr == nil {
+			if portNum, atoiErr := strconv.Atoi(port); atoiErr == nil {
+				if portNum >= 0 && portNum <= 0xFFFF {
+					var addrs []netip.Addr
+					if addrs, err = net.DefaultResolver.LookupNetIP(context.Background(), "ip", host); err == nil {
+						err = ErrMissingPeerEndpointAddress
+						for _, addr := range addrs {
+							if addr.Is4() {
+								endpoint = netip.AddrPortFrom(addr, uint16(portNum))
+								err = nil
+								break
+							}
+						}
+						if err != nil {
+							for _, addr := range addrs {
+								if addr.IsValid() {
+									endpoint = netip.AddrPortFrom(addr, uint16(portNum))
+									err = nil
+									break
+								}
+							}
+						}
+					}
+				} else {
+					err = ErrInvalidPeerEndpointPort
+				}
+			} else {
+				err = atoiErr
+			}
+		} else {
+			err = splitErr
+		}
+		if err != nil {
+			err = errors.Join(fail, err)
 		}
 	}
 	return
