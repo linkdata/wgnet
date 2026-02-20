@@ -9,9 +9,9 @@ import (
 
 type Config struct {
 	Addresses           []netip.Prefix
-	PrivateKey          []byte
-	PublicKey           []byte
-	PresharedKey        []byte
+	PrivateKey          []byte // #nosec G117
+	PublicKey           []byte // #nosec G117
+	PresharedKey        []byte // #nosec G117
 	Endpoint            netip.AddrPort
 	AllowedIPs          []netip.Prefix
 	DNS                 []netip.Addr
