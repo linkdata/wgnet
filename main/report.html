@@ -261,7 +261,7 @@ func Parse(r io.Reader, opts *Options) (cfg *Config, err error) <span class="cov
 
                                 <span class="cov8" title="1">if err == nil </span><span class="cov8" title="1">{
                                         if v, ok := inif.Get("interface", "listenport"); ok </span><span class="cov8" title="1">{
-                                                if cf.ListenPort, err = strconv.Atoi(v); err != nil || cf.ListenPort &lt; 1 || cf.ListenPort &gt; 0xFFFF </span><span class="cov8" title="1">{
+                                                if cf.ListenPort, err = strconv.Atoi(v); err != nil || cf.ListenPort &lt; 0 || cf.ListenPort &gt; 0xFFFF </span><span class="cov8" title="1">{
                                                         err = errors.Join(ErrInvalidInterfaceListenPort, err)
                                                 }</span>
                                         }
@@ -580,6 +580,11 @@ func (wgnet *WgNet) close(dev *device.Device) (err error) <span class="cov8" tit
         return
 }</span>
 
+// Close starts asynchronous shutdown of the underlying WireGuard device.
+// It returns after detaching the current netstack, before the device is
+// guaranteed to have released OS resources such as the UDP listen port.
+// Port release is performed in the background after sustained no-load or
+// at the maximum close timeout.
 func (wgnet *WgNet) Close() (err error) <span class="cov8" title="1">{
         if wgnet != nil </span><span class="cov8" title="1">{
                 if dev := wgnet.closing(); dev != nil </span><span class="cov8" title="1">{
