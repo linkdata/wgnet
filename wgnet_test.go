@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	mrand "math/rand/v2"
+	"net"
 	"os"
 	"strings"
 	"testing"
@@ -82,10 +84,22 @@ func TestWgNet_Open_Fails(t *testing.T) {
 	}
 }
 
+func TestWgNet_Open_NilReceiver(t *testing.T) {
+	var wg *wgnet.WgNet
+	err := wg.Open()
+	if !errors.Is(err, net.ErrClosed) {
+		t.Fatalf("expected %v, got %v", net.ErrClosed, err)
+	}
+}
+
 func TestWgNet_PingServer(t *testing.T) {
 	srv, cli := makeNets()
-	defer cli.Close()
-	defer srv.Close()
+	defer func() {
+		maybeFatal(t, cli.Close())
+	}()
+	defer func() {
+		maybeFatal(t, srv.Close())
+	}()
 
 	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
 	defer cancel()
@@ -97,8 +111,16 @@ func TestWgNet_PingServer(t *testing.T) {
 
 func Benchmark_PingServer(b *testing.B) {
 	srv, cli := makeNets()
-	defer cli.Close()
-	defer srv.Close()
+	defer func() {
+		if err := cli.Close(); err != nil {
+			b.Error(err)
+		}
+	}()
+	defer func() {
+		if err := srv.Close(); err != nil {
+			b.Error(err)
+		}
+	}()
 
 	ctx, cancel := context.WithTimeout(b.Context(), time.Minute)
 	defer cancel()
@@ -119,8 +141,12 @@ func Benchmark_PingServer(b *testing.B) {
 
 func TestWgNet_LookupHost(t *testing.T) {
 	srv, cli := makeNets()
-	defer cli.Close()
-	defer srv.Close()
+	defer func() {
+		maybeFatal(t, cli.Close())
+	}()
+	defer func() {
+		maybeFatal(t, srv.Close())
+	}()
 
 	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	defer cancel()
@@ -131,12 +157,18 @@ func TestWgNet_LookupHost(t *testing.T) {
 
 func TestWgNet_Listen(t *testing.T) {
 	srv, cli := makeNets()
-	defer cli.Close()
-	defer srv.Close()
+	defer func() {
+		maybeFatal(t, cli.Close())
+	}()
+	defer func() {
+		maybeFatal(t, srv.Close())
+	}()
 
 	l, err := srv.Listen("tcp", "10.131.132.1:0")
 	maybeFatal(t, err)
-	defer l.Close()
+	defer func() {
+		maybeFatal(t, l.Close())
+	}()
 
 	t.Log(l.Addr().String())
 
@@ -145,7 +177,9 @@ func TestWgNet_Listen(t *testing.T) {
 
 	conn, err := cli.Dial("tcp", l.Addr().String())
 	maybeFatal(t, err)
-	defer conn.Close()
+	defer func() {
+		maybeFatal(t, conn.Close())
+	}()
 
 	err = conn.SetDeadline(time.Now().Add(time.Second))
 	maybeFatal(t, err)
@@ -160,7 +194,9 @@ func TestWgNet_Listen(t *testing.T) {
 	buf := make([]byte, len(want))
 	accepted, err := l.Accept()
 	if err == nil {
-		defer accepted.Close()
+		defer func() {
+			maybeFatal(t, accepted.Close())
+		}()
 		if _, err = accepted.Read(buf); err != nil {
 			t.Error(err)
 		}
@@ -185,7 +221,9 @@ func TestWgNet_LookupHost_ExternalServer(t *testing.T) {
 	cli := wgnet.New(cfg)
 	err = cli.Open()
 	maybeFatal(t, err)
-	defer cli.Close()
+	defer func() {
+		maybeFatal(t, cli.Close())
+	}()
 
 	ctx, cancel := context.WithTimeout(t.Context(), time.Second*2)
 	defer cancel()

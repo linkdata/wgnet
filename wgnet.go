@@ -109,10 +109,12 @@ func ping4WithDialer(ctx context.Context, dialer contextDialer, address string) 
 					var replyPacket *icmp.Message
 					if replyPacket, err = icmp.ParseMessage(1, icmpBytes[:n]); err == nil {
 						err = ErrInvalidPingReply
-						if replyPing, ok := replyPacket.Body.(*icmp.Echo); ok {
-							if replyPing.Seq == requestPing.Seq && bytes.Equal(replyPing.Data, requestPing.Data) {
-								latency = time.Since(start)
-								err = nil
+						if replyPacket.Type == ipv4.ICMPTypeEchoReply {
+							if replyPing, ok := replyPacket.Body.(*icmp.Echo); ok {
+								if replyPing.Seq == requestPing.Seq && bytes.Equal(replyPing.Data, requestPing.Data) {
+									latency = time.Since(start)
+									err = nil
+								}
 							}
 						}
 					}
@@ -124,25 +126,29 @@ func ping4WithDialer(ctx context.Context, dialer contextDialer, address string) 
 }
 
 func (wgnet *WgNet) Open() (err error) {
-	_ = wgnet.Close()
-	wgnet.mu.Lock()
-	defer wgnet.mu.Unlock()
-	var addrs []netip.Addr
-	for _, pf := range wgnet.cfg.Addresses {
-		addrs = append(addrs, pf.Addr())
-	}
-	if wgnet.tun, wgnet.ns, err = netstack.CreateNetTUN(addrs, wgnet.cfg.DNS, 1420); err == nil {
-		wgnet.dev = device.NewDevice(wgnet.tun, conn.NewDefaultBind(), device.NewLogger(wgnet.cfg.LogLevel, "wgnet"))
-		if err = wgnet.dev.IpcSet(wgnet.cfg.UapiConf()); err == nil {
-			if err = wgnet.dev.Up(); err == nil {
-				return
+	err = net.ErrClosed
+	if wgnet != nil {
+		_ = wgnet.Close()
+		wgnet.mu.Lock()
+		defer wgnet.mu.Unlock()
+		err = nil
+		var addrs []netip.Addr
+		for _, pf := range wgnet.cfg.Addresses {
+			addrs = append(addrs, pf.Addr())
+		}
+		if wgnet.tun, wgnet.ns, err = netstack.CreateNetTUN(addrs, wgnet.cfg.DNS, 1420); err == nil {
+			wgnet.dev = device.NewDevice(wgnet.tun, conn.NewDefaultBind(), device.NewLogger(wgnet.cfg.LogLevel, "wgnet"))
+			if err = wgnet.dev.IpcSet(wgnet.cfg.UapiConf()); err == nil {
+				err = wgnet.dev.Up()
 			}
 		}
-	}
-	wgnet.ns = nil
-	if dev := wgnet.dev; dev != nil {
-		wgnet.dev = nil
-		_ = wgnet.close(dev)
+		if err != nil {
+			wgnet.ns = nil
+			if dev := wgnet.dev; dev != nil {
+				wgnet.dev = nil
+				_ = wgnet.close(dev)
+			}
+		}
 	}
 	return
 }

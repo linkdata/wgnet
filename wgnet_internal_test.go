@@ -47,12 +47,46 @@ func (c *fakeConn) SetDeadline(t time.Time) (err error) { c.deadline = t; return
 func (c *fakeConn) SetReadDeadline(time.Time) error     { return nil }
 func (c *fakeConn) SetWriteDeadline(time.Time) error    { return nil }
 
+type loopbackPingConn struct {
+	fakeConn
+	payload []byte
+}
+
+func (c *loopbackPingConn) Read(b []byte) (n int, err error) {
+	err = c.readErr
+	if err == nil {
+		n = copy(b, c.payload)
+	}
+	return
+}
+
+func (c *loopbackPingConn) Write(b []byte) (n int, err error) {
+	err = c.writeErr
+	if err == nil {
+		c.payload = append(c.payload[:0], b...)
+		n = len(b)
+	}
+	return
+}
+
 func TestPing4WithDialer_ClosesSocketOnError(t *testing.T) {
 	conn := &fakeConn{writeErr: io.ErrClosedPipe}
 	dialer := &fakeDialer{conn: conn}
 	_, err := ping4WithDialer(context.Background(), dialer, "127.0.0.1")
 	if !errors.Is(err, io.ErrClosedPipe) {
 		t.Fatalf("expected %v, got %v", io.ErrClosedPipe, err)
+	}
+	if conn.closeCalls != 1 {
+		t.Fatalf("expected 1 close call, got %d", conn.closeCalls)
+	}
+}
+
+func TestPing4WithDialer_RejectsEchoRequestPacket(t *testing.T) {
+	conn := &loopbackPingConn{}
+	dialer := &fakeDialer{conn: conn}
+	_, err := ping4WithDialer(context.Background(), dialer, "127.0.0.1")
+	if !errors.Is(err, ErrInvalidPingReply) {
+		t.Fatalf("expected %v, got %v", ErrInvalidPingReply, err)
 	}
 	if conn.closeCalls != 1 {
 		t.Fatalf("expected 1 close call, got %d", conn.closeCalls)

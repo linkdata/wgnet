@@ -39,9 +39,19 @@ func Example() {
 		if cliCfg, err = wgnet.Parse(strings.NewReader(ClientConfig), nil); err == nil {
 			cli = wgnet.New(cliCfg)
 			if err = srv.Open(); err == nil {
-				defer srv.Close()
+				defer func() {
+					var closeErr error
+					if closeErr = srv.Close(); err == nil {
+						err = closeErr
+					}
+				}()
 				if err = cli.Open(); err == nil {
-					defer cli.Close()
+					defer func() {
+						var closeErr error
+						if closeErr = cli.Close(); err == nil {
+							err = closeErr
+						}
+					}()
 					ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 					defer cancel()
 					var latency time.Duration
