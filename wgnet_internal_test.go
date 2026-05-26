@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"net"
+	"os"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -69,10 +71,60 @@ func (c *loopbackPingConn) Write(b []byte) (n int, err error) {
 	return
 }
 
+type cancelPingConn struct {
+	fakeConn
+	readStarted     chan struct{}
+	deadlineChanged chan time.Time
+	closeRead       chan struct{}
+	startOnce       sync.Once
+	closeOnce       sync.Once
+}
+
+func newCancelPingConn() *cancelPingConn {
+	return &cancelPingConn{
+		readStarted:     make(chan struct{}),
+		deadlineChanged: make(chan time.Time, 4),
+		closeRead:       make(chan struct{}),
+	}
+}
+
+func (c *cancelPingConn) Read(_ []byte) (n int, err error) {
+	c.startOnce.Do(func() { close(c.readStarted) })
+	for {
+		select {
+		case deadline := <-c.deadlineChanged:
+			if !deadline.IsZero() && !deadline.After(time.Now()) {
+				err = os.ErrDeadlineExceeded
+				return
+			}
+		case <-c.closeRead:
+			err = net.ErrClosed
+			return
+		}
+	}
+}
+
+func (c *cancelPingConn) SetDeadline(t time.Time) (err error) {
+	err = c.fakeConn.SetDeadline(t)
+	if err == nil {
+		select {
+		case c.deadlineChanged <- t:
+		default:
+		}
+	}
+	return
+}
+
+func (c *cancelPingConn) Close() (err error) {
+	c.closeOnce.Do(func() { close(c.closeRead) })
+	err = c.fakeConn.Close()
+	return
+}
+
 func TestPing4WithDialer_ClosesSocketOnError(t *testing.T) {
 	conn := &fakeConn{writeErr: io.ErrClosedPipe}
 	dialer := &fakeDialer{conn: conn}
-	_, err := ping4WithDialer(context.Background(), dialer, "127.0.0.1")
+	_, err := ping4WithDialer(t.Context(), dialer, "127.0.0.1")
 	if !errors.Is(err, io.ErrClosedPipe) {
 		t.Fatalf("expected %v, got %v", io.ErrClosedPipe, err)
 	}
@@ -84,10 +136,44 @@ func TestPing4WithDialer_ClosesSocketOnError(t *testing.T) {
 func TestPing4WithDialer_RejectsEchoRequestPacket(t *testing.T) {
 	conn := &loopbackPingConn{}
 	dialer := &fakeDialer{conn: conn}
-	_, err := ping4WithDialer(context.Background(), dialer, "127.0.0.1")
+	_, err := ping4WithDialer(t.Context(), dialer, "127.0.0.1")
 	if !errors.Is(err, ErrInvalidPingReply) {
 		t.Fatalf("expected %v, got %v", ErrInvalidPingReply, err)
 	}
+	if conn.closeCalls != 1 {
+		t.Fatalf("expected 1 close call, got %d", conn.closeCalls)
+	}
+}
+
+func TestPing4WithDialer_CanceledContextUnblocksRead(t *testing.T) {
+	conn := newCancelPingConn()
+	dialer := &fakeDialer{conn: conn}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() {
+		_, err := ping4WithDialer(ctx, dialer, "127.0.0.1")
+		done <- err
+	}()
+
+	select {
+	case <-conn.readStarted:
+	case <-time.After(time.Second):
+		_ = conn.Close()
+		t.Fatal("timed out waiting for ping read")
+	}
+
+	cancel()
+
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("expected %v, got %v", context.Canceled, err)
+		}
+	case <-time.After(time.Second):
+		_ = conn.Close()
+		t.Fatal("timed out waiting for canceled ping")
+	}
+
 	if conn.closeCalls != 1 {
 		t.Fatalf("expected 1 close call, got %d", conn.closeCalls)
 	}
@@ -97,7 +183,7 @@ func TestPing4WithDialer_CapsDeadlineToTenSeconds(t *testing.T) {
 	conn := &fakeConn{writeErr: io.ErrClosedPipe}
 	dialer := &fakeDialer{conn: conn}
 
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Hour))
+	ctx, cancel := context.WithDeadline(t.Context(), time.Now().Add(time.Hour))
 	defer cancel()
 
 	_, err := ping4WithDialer(ctx, dialer, "127.0.0.1")
@@ -115,7 +201,7 @@ func TestPing4WithDialer_UsesEarlierContextDeadline(t *testing.T) {
 	conn := &fakeConn{writeErr: io.ErrClosedPipe}
 	dialer := &fakeDialer{conn: conn}
 
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*2))
+	ctx, cancel := context.WithDeadline(t.Context(), time.Now().Add(time.Second*2))
 	defer cancel()
 
 	_, err := ping4WithDialer(ctx, dialer, "127.0.0.1")

@@ -92,9 +92,21 @@ func ping4WithDialer(ctx context.Context, dialer contextDialer, address string) 
 				err = closeErr
 			}
 		}()
+		ctxDone := ctx.Done()
+		if ctxDone != nil {
+			done := make(chan struct{})
+			defer close(done)
+			go func() {
+				select {
+				case <-ctxDone:
+					_ = socket.SetDeadline(time.Now())
+				case <-done:
+				}
+			}()
+		}
 		requestPing := icmp.Echo{
-			Seq:  rand.IntN(1 << 16), // #nosec G404
-			Data: strconv.AppendInt([]byte("wgnet"), int64(rand.IntN(1<<32) /*#nosec G404*/), 16),
+			Seq:  rand.IntN(1 << 16),                                             // #nosec G404
+			Data: strconv.AppendUint([]byte("wgnet"), uint64(rand.Uint32()), 16), // #nosec G404
 		}
 		icmpBytes, _ := (&icmp.Message{Type: ipv4.ICMPTypeEcho, Code: 0, Body: &requestPing}).Marshal(nil)
 		start := time.Now()
@@ -104,23 +116,30 @@ func ping4WithDialer(ctx context.Context, dialer contextDialer, address string) 
 				dl = ctxdl
 			}
 		}
-		if err = socket.SetDeadline(dl); err == nil {
-			if _, err = socket.Write(icmpBytes); err == nil {
-				var n int
-				if n, err = socket.Read(icmpBytes[:]); err == nil {
-					var replyPacket *icmp.Message
-					if replyPacket, err = icmp.ParseMessage(1, icmpBytes[:n]); err == nil {
-						err = ErrInvalidPingReply
-						if replyPacket.Type == ipv4.ICMPTypeEchoReply {
-							if replyPing, ok := replyPacket.Body.(*icmp.Echo); ok {
-								if replyPing.Seq == requestPing.Seq && bytes.Equal(replyPing.Data, requestPing.Data) {
-									latency = time.Since(start)
-									err = nil
+		if err = ctx.Err(); err == nil {
+			if err = socket.SetDeadline(dl); err == nil {
+				if _, err = socket.Write(icmpBytes); err == nil {
+					var n int
+					if n, err = socket.Read(icmpBytes[:]); err == nil {
+						var replyPacket *icmp.Message
+						if replyPacket, err = icmp.ParseMessage(1, icmpBytes[:n]); err == nil {
+							err = ErrInvalidPingReply
+							if replyPacket.Type == ipv4.ICMPTypeEchoReply {
+								if replyPing, ok := replyPacket.Body.(*icmp.Echo); ok {
+									if replyPing.Seq == requestPing.Seq && bytes.Equal(replyPing.Data, requestPing.Data) {
+										latency = time.Since(start)
+										err = nil
+									}
 								}
 							}
 						}
 					}
 				}
+			}
+		}
+		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				err = ctxErr
 			}
 		}
 	}
