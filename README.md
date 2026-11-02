@@ -115,6 +115,26 @@ firewall-cmd --permanent --zone public --add-port=51820/udp
 firewall-cmd --reload
 ```
 
+### Raise the connection tracking limit
+
+Masquerading tracks every forwarded connection. The kernel default table size
+is small on low-memory VMs, and a full table drops packets with
+`nf_conntrack: table full, dropping packet` in `dmesg`.
+
+```sh
+echo nf_conntrack > /etc/modules-load.d/nf_conntrack.conf
+echo "options nf_conntrack hashsize=65536" > /etc/modprobe.d/nf_conntrack.conf
+cat > /etc/sysctl.d/90-conntrack.conf <<EOF
+net.netfilter.nf_conntrack_max = 262144
+net.netfilter.nf_conntrack_buckets = 65536
+net.netfilter.nf_conntrack_tcp_timeout_time_wait = 30
+net.netfilter.nf_conntrack_tcp_timeout_close_wait = 30
+EOF
+sysctl -p /etc/sysctl.d/90-conntrack.conf
+```
+
+A full table of 262144 entries uses about 80 MB of RAM.
+
 ### Start and set wireguard to start on boot
 
 ```sh
